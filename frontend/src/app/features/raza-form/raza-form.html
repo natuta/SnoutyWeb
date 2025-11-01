@@ -1,0 +1,19 @@
+
+<div class="card max-w-xl">
+  <h2 class="text-xl font-bold mb-4">{{title}}</h2>
+  <form (ngSubmit)="save()" #f="ngForm">
+    <label class="block mb-2">Nombre
+      <input class="border p-2 w-full" name="nombre" [(ngModel)]="model.nombre" required minlength="2"/>
+    </label>
+    <label class="block mb-2">Especie
+      <select class="border p-2 w-full" name="especie" [(ngModel)]="model.especie" required>
+        <option [ngValue]="0" disabled>-- seleccione --</option>
+        <option *ngFor="let e of especies" [ngValue]="e.id">{{e.nombre}}</option>
+      </select>
+    </label>
+    <div class="mt-4 flex gap-2">
+      <button class="bg-green-600 text-white px-4 py-2 rounded" [disabled]="f.invalid || !model.especie">Guardar</button>
+      <a routerLink="/razas" class="px-4 py-2 border rounded">Cancelar</a>
+    </div>
+  </form>
+</div>

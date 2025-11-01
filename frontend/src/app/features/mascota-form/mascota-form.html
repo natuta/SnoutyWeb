@@ -1,0 +1,42 @@
+
+<div class="card max-w-2xl">
+  <h2 class="text-xl font-bold mb-4">{{title}}</h2>
+  <form (ngSubmit)="save()" #f="ngForm">
+    <div class="grid grid-cols-2 gap-4">
+      <label>Nombre
+        <input class="border p-2 w-full" name="nombre" [(ngModel)]="model.nombre" required minlength="2"/>
+      </label>
+      <label>Sexo
+        <select class="border p-2 w-full" name="sexo" [(ngModel)]="model.sexo" required>
+          <option [ngValue]="'M'">M</option>
+          <option [ngValue]="'F'">F</option>
+        </select>
+      </label>
+      <label>Edad
+        <input class="border p-2 w-full" type="number" min="0" name="edad" [(ngModel)]="model.edad"/>
+      </label>
+      <label>Color
+        <input class="border p-2 w-full" name="color" [(ngModel)]="model.color"/>
+      </label>
+      <label class="col-span-2">Descripción
+        <textarea class="border p-2 w-full" name="descripcion" [(ngModel)]="model.descripcion"></textarea>
+      </label>
+      <label>Especie
+        <select class="border p-2 w-full" name="especie" [(ngModel)]="model.especie" (change)="onEspecieChange()" required>
+          <option [ngValue]="0" disabled>-- seleccione --</option>
+          <option *ngFor="let e of especies" [ngValue]="e.id">{{e.nombre}}</option>
+        </select>
+      </label>
+      <label>Raza (opcional, debe corresponder a la especie)
+        <select class="border p-2 w-full" name="raza" [(ngModel)]="model.raza">
+          <option [ngValue]="null">-- sin raza --</option>
+          <option *ngFor="let r of razas " [ngValue]="r.id"></option>
+        </select>
+      </label>
+    </div>
+    <div class="mt-4 flex gap-2">
+      <button class="bg-green-600 text-white px-4 py-2 rounded" [disabled]="f.invalid || !model.especie">Guardar</button>
+      <a routerLink="/mascotas" class="px-4 py-2 border rounded">Cancelar</a>
+    </div>
+  </form>
+</div>

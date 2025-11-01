@@ -1,0 +1,28 @@
+
+<div class="card">
+  <div class="flex justify-between items-center mb-3">
+    <h2 class="text-xl font-bold">Mascotas</h2>
+    <a class="p-2 rounded bg-blue-500 text-white" routerLink="/mascotas/nuevo">Nueva mascota</a>
+  </div>
+  <table class="w-full border">
+    <thead><tr>
+      <th class="p-2 border">ID</th><th class="p-2 border">Nombre</th><th class="p-2 border">Sexo</th>
+      <th class="p-2 border">Edad</th><th class="p-2 border">Color</th><th class="p-2 border">Especie</th><th class="p-2 border">Raza</th>
+      <th class="p-2 border">Acciones</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let m of data">
+        <td class="p-2 border">{{m.id}}</td>
+        <td class="p-2 border">{{m.nombre}}</td>
+        <td class="p-2 border">{{m.sexo}}</td>
+        <td class="p-2 border">{{m.edad}}</td>
+        <td class="p-2 border">{{m.color}}</td>
+        <td class="p-2 border">{{m.especie}}</td>
+        <td class="p-2 border">{{m.raza}}</td>
+        <td class="p-2 border">
+          <a class="mr-2 text-blue-600" [routerLink]="['/mascotas', m.id, 'editar']">Editar</a>
+          <button class="text-red-600" (click)="remove(m.id)">Eliminar</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

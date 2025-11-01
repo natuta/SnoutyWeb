@@ -1,0 +1,27 @@
+﻿# Python / Django
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+db.sqlite3
+media/
+staticfiles/
+static/
+.env
+*.env
+.env.*
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# Comprimidos / binarios grandes
+*.zip
+*.rar
+*.7z

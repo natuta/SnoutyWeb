@@ -1,0 +1,20 @@
+
+<div class="card">
+  <div class="flex justify-between items-center mb-3">
+    <h2 class="text-xl font-bold">Especies</h2>
+    <a class="p-2 rounded bg-blue-500 text-white" routerLink="/especies/nuevo">Nueva especie</a>
+  </div>
+  <table class="w-full border">
+    <thead><tr><th class="p-2 border">ID</th><th class="p-2 border">Nombre</th><th class="p-2 border">Acciones</th></tr></thead>
+    <tbody>
+      <tr *ngFor="let e of data">
+        <td class="p-2 border">{{e.id}}</td>
+        <td class="p-2 border">{{e.nombre}}</td>
+        <td class="p-2 border">
+          <a class="mr-2 text-blue-600" [routerLink]="['/especies', e.id, 'editar']">Editar</a>
+          <button class="text-red-600" (click)="remove(e.id)">Eliminar</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,1 @@
+export interface Raza { id?: number; nombre: string; especie: number; especie_nombre?: string; }
