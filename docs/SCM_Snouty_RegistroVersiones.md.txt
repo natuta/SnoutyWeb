@@ -1,0 +1,6 @@
+| Ítem                              | Versión | Tag               | Responsable | Fecha       | Comentario                                  |
+|----------------------------------|---------|-------------------|-------------|-------------|---------------------------------------------|
+| backend/catalogo/models.py       | v0.1.0  | v0.1.0-sprint-1   | Telma       | 2025-11-03  | Modelo Mascota con estado/foto              |
+| backend/config/urls.py           | v0.1.0  | v0.1.0-sprint-1   | Telma       | 2025-11-03  | Router DRF: /api/especies/razas/mascotas    |
+| frontend/features/mascotas-list  | v0.1.0  | v0.1.0-sprint-1   | Telma       | 2025-11-03  | Lista Angular conectada a API_BASE          |
+| docs/RQ_Snouty_Requisitos_v1.0   | v1.0    | v0.1.0-sprint-1   | Telma       | 2025-11-03  | Requisitos iniciales                        |
