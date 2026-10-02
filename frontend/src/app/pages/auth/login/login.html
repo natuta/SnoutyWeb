@@ -1,0 +1,156 @@
+<!-- LOGIN TOTALMENTE CENTRADO – GLASSMORPHISM -->
+<div
+  class="surface-ground"
+  style="
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem;
+
+    background-image: url('https://www.housedigest.com/img/gallery/12-ways-to-use-lemon-around-your-backyard-and-garden/to-repel-cats-and-dogs-from-the-garden-1714769409.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  "
+>
+  <!-- CARD -->
+  <div
+    class="shadow-4 p-4"
+    style="
+      width: 100%;
+      max-width: 420px;
+      border-radius: 18px;
+
+      background: rgba(0,0,0,0.20);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+
+      border: 1px solid rgba(255,255,255,0.25);
+    "
+  >
+    <!-- HEADER -->
+    <div class="text-center mb-4">
+      
+
+      <h2
+        class="font-bold text-2xl m-0"
+        style="color: #ffffff;"
+      >
+        Iniciar sesión
+      </h2>
+
+      <p
+        class="text-sm mt-2"
+        style="color: rgba(255,255,255,0.85);"
+      >
+        Bienvenido a Snouty 🐾
+      </p>
+    </div>
+
+    <!-- FORM -->
+    <form
+      [formGroup]="form"
+      (ngSubmit)="onSubmit()"
+      class="p-fluid"
+      style="display:flex; flex-direction:column; gap:1rem;"
+    >
+      <!-- Email -->
+      <div style="display:flex; flex-direction:column; gap:0.25rem;">
+        <label
+          class="text-sm font-medium"
+          style="color:#ffffff;"
+        >
+          Correo electrónico
+        </label>
+
+        <span class="p-input-icon-left w-full">
+          <i class="pi pi-envelope"></i>
+          <input
+            type="email"
+            pInputText
+            class="w-full"
+            formControlName="email"
+            placeholder="usuario@correo.com"
+            style="background: rgba(255,255,255,0.85);"
+          />
+        </span>
+
+        <small
+          class="p-error"
+          *ngIf="f['email'].touched && f['email'].invalid"
+        >
+          Ingresa un correo válido.
+        </small>
+      </div>
+
+      <!-- Password -->
+      <div style="display:flex; flex-direction:column; gap:0.25rem;">
+        <div class="flex align-items-center justify-content-between">
+          <label
+            class="text-sm font-medium"
+            style="color:#ffffff;"
+          >
+            Contraseña
+          </label>
+
+          <a
+            class="text-xs cursor-pointer"
+            style="color:#ffffff;"
+            (click)="goToForgot()"
+          >
+            ¿Olvidaste tu contraseña?
+          </a>
+        </div>
+
+        <span class="p-input-icon-left w-full">
+          <i class="pi pi-lock"></i>
+          <input
+            type="password"
+            pInputText
+            class="w-full"
+            formControlName="password"
+            placeholder="********"
+            style="background: rgba(255,255,255,0.85);"
+          />
+        </span>
+
+        <small
+          class="p-error"
+          *ngIf="f['password'].touched && f['password'].invalid"
+        >
+          La contraseña es obligatoria.
+        </small>
+      </div>
+
+      <!-- Error general -->
+      <div *ngIf="error" class="p-error text-center text-sm">
+        {{ error }}
+      </div>
+
+      <!-- Botón -->
+      <button
+        pButton
+        label="Ingresar"
+        class="w-full"
+        type="submit"
+        [disabled]="loading"
+      ></button>
+    </form>
+
+    <!-- Registro -->
+    <div
+      class="text-center mt-3 text-sm"
+      style="color:#ffffff;"
+    >
+      ¿No tienes cuenta?
+      <a
+        class="cursor-pointer"
+        style="color:#ffd86b;"
+        (click)="goToRegister()"
+      >
+        Regístrate aquí
+      </a>
+    </div>
+  </div>
+</div>

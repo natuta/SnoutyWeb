@@ -1,0 +1,16 @@
+venv/
+.venv/
+
+__pycache__/
+*.pyc
+*.pyo
+
+credentials.json
+gmail_token.json
+.env
+
+tmp_adoptantes/
+tmp_facturas/
+tmp_fotos_mascotas/
+tmp_perfiles/
+tmp_seguimientos/

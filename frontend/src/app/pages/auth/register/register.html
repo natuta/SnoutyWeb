@@ -1,0 +1,352 @@
+<p-toast></p-toast>
+
+<div class="auth-bg">
+  <div class="auth-card">
+    <div class="auth-card__header">
+      <h2 class="auth-card__title">Crear Cuenta</h2>
+      <p class="auth-card__subtitle">Registro seguro por pasos (sin scroll) ✨</p>
+    </div>
+
+    <div class="auth-card__body">
+      <!-- ✅ AQUÍ ESTABA EL PROBLEMA: faltaba el formGroup -->
+      <form [formGroup]="form" (ngSubmit)="onSubmitFinal()">
+        <p-steps [model]="steps" [activeIndex]="step"></p-steps>
+
+        <!-- PASO 0 -->
+        <div class="section" *ngIf="step === 0">
+          <h4>1) Cuenta</h4>
+
+          <div class="field">
+            <label>Rol</label>
+
+            <div class="role-row">
+              <div class="role-pill" [class.active]="rol==='TUTOR'" (click)="setRol('TUTOR')">
+                <p-radioButton name="rol" inputId="rolTutor" value="TUTOR" formControlName="rol"></p-radioButton>
+                <label for="rolTutor">Tutor</label>
+              </div>
+
+              <div class="role-pill" [class.active]="rol==='ADOPTANTE'" (click)="setRol('ADOPTANTE')">
+                <p-radioButton name="rol" inputId="rolAdopt" value="ADOPTANTE" formControlName="rol"></p-radioButton>
+                <label for="rolAdopt">Adoptante</label>
+              </div>
+            </div>
+
+            <small class="p-error" *ngIf="showRolError">Selecciona un rol para continuar.</small>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>Correo</label>
+              <input pInputText type="email" formControlName="email" placeholder="usuario@gmail.com" />
+              <small class="p-error" *ngIf="isInvalid('email')">{{ errorText('email') }}</small>
+            </div>
+
+            <div class="field">
+              <label>Contraseña</label>
+              <input pInputText type="password" formControlName="password" placeholder="8+ con Mayús y número" />
+              <small class="hint">Ej: Snouty2026</small>
+              <small class="p-error" *ngIf="isInvalid('password')">{{ errorText('password') }}</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 1 -->
+        <div class="section" *ngIf="step === 1">
+          <h4>2) Perfil</h4>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>Nombres</label>
+              <input pInputText formControlName="nombres" placeholder="Ej: María Fernanda" />
+              <small class="p-error" *ngIf="isInvalid('nombres')">{{ errorText('nombres') }}</small>
+            </div>
+
+            <div class="field">
+              <label>Apellidos</label>
+              <input pInputText formControlName="apellidos" placeholder="Ej: Pérez Gómez" />
+              <small class="p-error" *ngIf="isInvalid('apellidos')">{{ errorText('apellidos') }}</small>
+            </div>
+
+            <div class="field">
+              <label>Teléfono</label>
+              <input pInputText formControlName="telefono" placeholder="+591 70000000" />
+              <small class="p-error" *ngIf="isInvalid('telefono')">{{ errorText('telefono') }}</small>
+            </div>
+
+            <div class="field" *ngIf="rol === 'TUTOR'">
+              <label>NIT</label>
+              <input pInputText formControlName="nit" placeholder="Solo números (7 a 15 dígitos)" />
+              <small class="p-error" *ngIf="isInvalid('nit')">{{ errorText('nit') }}</small>
+            </div>
+
+            <div class="field" *ngIf="rol === 'ADOPTANTE'">
+              <label>CI</label>
+              <input pInputText formControlName="ci" placeholder="Ej: 1234567LP" />
+              <small class="p-error" *ngIf="isInvalid('ci')">{{ errorText('ci') }}</small>
+            </div>
+
+            <div class="field" *ngIf="rol === 'ADOPTANTE'">
+              <label>Ocupación</label>
+              <input pInputText formControlName="ocupacion" placeholder="Ej: Estudiante / Empleado" />
+              <small class="p-error" *ngIf="isInvalid('ocupacion')">{{ errorText('ocupacion') }}</small>
+            </div>
+
+            <div class="field" *ngIf="rol === 'ADOPTANTE'">
+              <label>Dirección</label>
+              <input pInputText formControlName="direccion" placeholder="Zona, calle, #, referencia" />
+              <small class="p-error" *ngIf="isInvalid('direccion')">{{ errorText('direccion') }}</small>
+            </div>
+
+            <div class="field" *ngIf="rol === 'ADOPTANTE'">
+              <label>Edad</label>
+              <input pInputText type="number" formControlName="edad" placeholder="18+" />
+              <small class="p-error" *ngIf="isInvalid('edad')">{{ errorText('edad') }}</small>
+            </div>
+
+            <div class="field" *ngIf="rol === 'ADOPTANTE'">
+              <label>Sexo</label>
+              <div class="role-row" style="justify-content:flex-start;">
+                <div class="role-pill" (click)="form.patchValue({sexo:'M'})">
+                  <p-radioButton name="sexo" value="M" formControlName="sexo" inputId="sexoM"></p-radioButton>
+                  <label for="sexoM">Masculino</label>
+                </div>
+                <div class="role-pill" (click)="form.patchValue({sexo:'F'})">
+                  <p-radioButton name="sexo" value="F" formControlName="sexo" inputId="sexoF"></p-radioButton>
+                  <label for="sexoF">Femenino</label>
+                </div>
+              </div>
+              <small class="p-error" *ngIf="isInvalid('sexo')">{{ errorText('sexo') }}</small>
+            </div>
+          </div>
+
+          <div class="field" *ngIf="rol === 'ADOPTANTE'">
+            <div style="display:flex; align-items:center; gap:.6rem; margin-top:.6rem;">
+              <p-checkbox formControlName="tiene_patio" binary="true" inputId="patio"></p-checkbox>
+              <label for="patio" style="font-weight:700;">¿Tiene patio?</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 2 (Documentos) -->
+        <div class="section" *ngIf="step === 2">
+          <h4>3) Documentos</h4>
+          <div class="hint">Formatos: JPG/PNG/WEBP y PDF (máx 5MB).</div>
+
+          <div class="doc-grid">
+            <!-- FOTO PERFIL -->
+            <div class="doc-card">
+              <div class="doc-head">
+                <div>
+                  <p class="doc-title">Foto de perfil</p>
+                  <div class="doc-sub">Obligatorio</div>
+                </div>
+              </div>
+
+              <div class="doc-body">
+                <div class="thumb">
+                  <img *ngIf="fotoPerfilPreview" [src]="fotoPerfilPreview" alt="preview" />
+                  <span *ngIf="!fotoPerfilPreview">IMG</span>
+                </div>
+                <div class="doc-meta">
+                  <div class="doc-name">{{ fotoPerfilName || 'Sin archivo seleccionado' }}</div>
+                  <small class="p-error" *ngIf="showFotoPerfilError">Sube tu foto de perfil.</small>
+                </div>
+              </div>
+
+              <div class="actions">
+                <input #fotoPerfilInput type="file" accept="image/*" (change)="onFotoPerfilSelected($event)" hidden />
+                <button pButton type="button" label="Elegir" (click)="fotoPerfilInput.click()"></button>
+                <button pButton type="button" label="Quitar" severity="secondary" (click)="clearFotoPerfil(fotoPerfilInput)"></button>
+              </div>
+            </div>
+
+            <!-- ADOPTANTE: docs -->
+            <ng-container *ngIf="rol === 'ADOPTANTE'">
+              <!-- Recibo -->
+              <div class="doc-card">
+                <div class="doc-head">
+                  <div>
+                    <p class="doc-title">Recibo de luz</p>
+                    <div class="doc-sub">Obligatorio</div>
+                  </div>
+                </div>
+
+                <div class="doc-body">
+                  <div class="thumb">
+                    <img *ngIf="reciboLuzPreview" [src]="reciboLuzPreview" alt="preview" />
+                    <span *ngIf="!reciboLuzPreview">PDF/IMG</span>
+                  </div>
+                  <div class="doc-meta">
+                    <div class="doc-name">{{ reciboLuzName || 'Sin archivo seleccionado' }}</div>
+                    <small class="p-error" *ngIf="showReciboLuzError">Sube el recibo de luz.</small>
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <input #reciboInput type="file" accept="image/*,application/pdf" (change)="onReciboLuzSelected($event)" hidden />
+                  <button pButton type="button" label="Elegir" (click)="reciboInput.click()"></button>
+                  <button pButton type="button" label="Quitar" severity="secondary" (click)="clearRecibo(reciboInput)"></button>
+                </div>
+              </div>
+
+              <!-- CI -->
+              <div class="doc-card">
+                <div class="doc-head">
+                  <div>
+                    <p class="doc-title">CI (foto o PDF)</p>
+                    <div class="doc-sub">Obligatorio</div>
+                  </div>
+                </div>
+
+                <div class="doc-body">
+                  <div class="thumb">
+                    <img *ngIf="ciDocPreview" [src]="ciDocPreview" alt="preview" />
+                    <span *ngIf="!ciDocPreview">PDF/IMG</span>
+                  </div>
+                  <div class="doc-meta">
+                    <div class="doc-name">{{ ciDocName || 'Sin archivo seleccionado' }}</div>
+                    <small class="p-error" *ngIf="showCiDocError">Sube tu CI.</small>
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <input #ciInput type="file" accept="image/*,application/pdf" (change)="onCiDocSelected($event)" hidden />
+                  <button pButton type="button" label="Elegir" (click)="ciInput.click()"></button>
+                  <button pButton type="button" label="Quitar" severity="secondary" (click)="clearCiDoc(ciInput)"></button>
+                </div>
+              </div>
+
+              <!-- Garante -->
+              <div class="doc-card">
+                <div class="doc-head">
+                  <div>
+                    <p class="doc-title">Garante</p>
+                    <div class="doc-sub">Obligatorio</div>
+                  </div>
+                </div>
+
+                <div class="doc-body">
+                  <div class="thumb">
+                    <img *ngIf="garantePreview" [src]="garantePreview" alt="preview" />
+                    <span *ngIf="!garantePreview">PDF/IMG</span>
+                  </div>
+                  <div class="doc-meta">
+                    <div class="doc-name">{{ garanteName || 'Sin archivo seleccionado' }}</div>
+                    <small class="p-error" *ngIf="showGaranteError">Sube el documento de garante.</small>
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <input #garanteInput type="file" accept="image/*,application/pdf" (change)="onGaranteSelected($event)" hidden />
+                  <button pButton type="button" label="Elegir" (click)="garanteInput.click()"></button>
+                  <button pButton type="button" label="Quitar" severity="secondary" (click)="clearGarante(garanteInput)"></button>
+                </div>
+              </div>
+
+              <!-- Fachada -->
+              <div class="doc-card">
+                <div class="doc-head">
+                  <div>
+                    <p class="doc-title">Fachada</p>
+                    <div class="doc-sub">Obligatorio</div>
+                  </div>
+                </div>
+
+                <div class="doc-body">
+                  <div class="thumb">
+                    <img *ngIf="fachadaPreview" [src]="fachadaPreview" alt="preview" />
+                    <span *ngIf="!fachadaPreview">PDF/IMG</span>
+                  </div>
+                  <div class="doc-meta">
+                    <div class="doc-name">{{ fachadaName || 'Sin archivo seleccionado' }}</div>
+                    <small class="p-error" *ngIf="showFachadaError">Sube la foto/documento de fachada.</small>
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <input #fachadaInput type="file" accept="image/*,application/pdf" (change)="onFachadaSelected($event)" hidden />
+                  <button pButton type="button" label="Elegir" (click)="fachadaInput.click()"></button>
+                  <button pButton type="button" label="Quitar" severity="secondary" (click)="clearFachada(fachadaInput)"></button>
+                </div>
+              </div>
+
+              <!-- Domicilio -->
+              <div class="doc-card">
+                <div class="doc-head">
+                  <div>
+                    <p class="doc-title">Domicilio</p>
+                    <div class="doc-sub">Obligatorio</div>
+                  </div>
+                </div>
+
+                <div class="doc-body">
+                  <div class="thumb">
+                    <img *ngIf="domicilioPreview" [src]="domicilioPreview" alt="preview" />
+                    <span *ngIf="!domicilioPreview">PDF/IMG</span>
+                  </div>
+                  <div class="doc-meta">
+                    <div class="doc-name">{{ domicilioName || 'Sin archivo seleccionado' }}</div>
+                    <small class="p-error" *ngIf="showDomicilioError">Sube tu documento de domicilio.</small>
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <input #domInput type="file" accept="image/*,application/pdf" (change)="onDomicilioSelected($event)" hidden />
+                  <button pButton type="button" label="Elegir" (click)="domInput.click()"></button>
+                  <button pButton type="button" label="Quitar" severity="secondary" (click)="clearDomicilio(domInput)"></button>
+                </div>
+              </div>
+
+              <!-- Croquis -->
+              <div class="doc-card">
+                <div class="doc-head">
+                  <div>
+                    <p class="doc-title">Croquis</p>
+                    <div class="doc-sub">Obligatorio</div>
+                  </div>
+                </div>
+
+                <div class="doc-body">
+                  <div class="thumb">
+                    <img *ngIf="croquisPreview" [src]="croquisPreview" alt="preview" />
+                    <span *ngIf="!croquisPreview">PDF/IMG</span>
+                  </div>
+                  <div class="doc-meta">
+                    <div class="doc-name">{{ croquisName || 'Sin archivo seleccionado' }}</div>
+                    <small class="p-error" *ngIf="showCroquisError">Sube el croquis.</small>
+                  </div>
+                </div>
+
+                <div class="actions">
+                  <input #croquisInput type="file" accept="image/*,application/pdf" (change)="onCroquisSelected($event)" hidden />
+                  <button pButton type="button" label="Elegir" (click)="croquisInput.click()"></button>
+                  <button pButton type="button" label="Quitar" severity="secondary" (click)="clearCroquis(croquisInput)"></button>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="wizard-actions" *ngIf="step < 2">
+          <button pButton type="button" label="Volver al Login" severity="secondary" (click)="goToLogin()"></button>
+          <div style="display:flex; gap:.6rem; flex-wrap:wrap;">
+            <button pButton type="button" label="Atrás" severity="secondary" (click)="prevStep()" [disabled]="step === 0"></button>
+            <button pButton type="button" label="Siguiente" (click)="nextStep()"></button>
+          </div>
+        </div>
+
+        <div class="wizard-actions" *ngIf="step === 2">
+          <button pButton type="button" label="Atrás" severity="secondary" (click)="prevStep()"></button>
+          <div style="display:flex; gap:.6rem; flex-wrap:wrap;">
+            <button pButton type="button" label="Ir al Login" severity="secondary" (click)="goToLogin()"></button>
+
+            <!-- ✅ submit real -->
+            <button pButton type="submit" label="Crear cuenta" [loading]="loading"></button>
+          </div>
+        </div>
+      </form>
+      <!-- ✅ FIN formGroup -->
+    </div>
+  </div>
+</div>

@@ -1,0 +1,403 @@
+<p-toast></p-toast>
+
+<div class="page-wrap">
+  <div class="card">
+    <div class="page-header">
+      <div class="title">
+        <h5>Cartillas Médicas</h5>
+        <small>Registro clínico organizado por pasos, con validación y mensajes.</small>
+      </div>
+
+      <button
+        pButton
+        type="button"
+        label="Nueva cartilla"
+        icon="pi pi-plus"
+        (click)="openNew()"
+      ></button>
+    </div>
+
+    <p-table
+      [value]="cartillas"
+      [paginator]="true"
+      [rows]="10"
+      dataKey="id"
+      [tableStyle]="{ 'min-width': '70rem' }"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 5rem">ID</th>
+          <th>Mascota</th>
+          <th>Esterilizado</th>
+          <th>Actitud</th>
+          <th>Condición</th>
+          <th>Deshidratación</th>
+          <th>Fecha</th>
+          <th style="width: 8rem">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-row>
+        <tr>
+          <td>{{ row.id }}</td>
+          <td>{{ nombreMascota(row.mascota_id) }}</td>
+          <td>
+            <i
+              class="pi"
+              [ngClass]="row.esterilizado ? 'pi-check text-green-500' : 'pi-times text-red-500'"
+            ></i>
+          </td>
+          <td>{{ row.actitud || '-' }}</td>
+          <td>{{ row.condicion_corporal || '-' }}</td>
+          <td>{{ row.estado_deshidratacion || '-' }}</td>
+          <td>{{ row.fecha }}</td>
+          <td>
+            <button
+              pButton
+              icon="pi pi-pencil"
+              rounded
+              text
+              severity="secondary"
+              (click)="edit(row)"
+            ></button>
+            <button
+              pButton
+              icon="pi pi-trash"
+              rounded
+              text
+              severity="danger"
+              (click)="openDeleteConfirm(row)"
+            ></button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+
+  <!-- FORM DIALOG -->
+  <p-dialog
+    [(visible)]="dialogVisible"
+    [modal]="true"
+    [closable]="false"
+    [draggable]="false"
+    [breakpoints]="{ '1200px': '60vw', '960px': '75vw', '640px': '95vw' }"
+    [style]="{ width: '55vw', maxWidth: '820px' }"
+    [baseZIndex]="10000"
+    [dismissableMask]="false"
+    [header]="editingId ? 'Editar cartilla' : 'Nueva cartilla'"
+  >
+    <div class="glass">
+      <!-- Steps -->
+      <p-steps [model]="steps" [activeIndex]="stepIndex" styleClass="mb-3"></p-steps>
+
+      <form [formGroup]="form" class="mt-2">
+        <!-- ===== STEP 1: Datos básicos ===== -->
+        <ng-container *ngIf="stepIndex === 0">
+          <div class="section-title">
+            <h6>Datos básicos</h6>
+            <small class="hint">Campos obligatorios: Mascota, Fecha</small>
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label>Mascota *</label>
+
+              <p-autoComplete
+                formControlName="mascota_nombre"
+                [suggestions]="mascotaSuggestions"
+                (completeMethod)="filterMascotas($event)"
+                (onSelect)="onMascotaSelected($event)"
+                (onClear)="onMascotaCleared()"
+                field="nombre"
+                [dropdown]="true"
+                [forceSelection]="true"
+                [showClear]="true"
+                [disabled]="editingId !== null"
+                placeholder="Escribe y selecciona..."
+                class="w-full"
+              >
+                <ng-template pTemplate="item" let-m>
+                  <div style="display:flex; flex-direction:column;">
+                    <span class="font-medium">{{ m?.nombre }}</span>
+                    <small class="text-600">{{ m?.especie_nombre }} • {{ m?.raza_nombre }}</small>
+                  </div>
+                </ng-template>
+              </p-autoComplete>
+
+              <small class="err p-error" *ngIf="isInvalid('mascota_nombre')">
+                {{ errMsg('mascota_nombre') }}
+              </small>
+
+              <small class="hint" *ngIf="editingId !== null">
+                (No se puede cambiar la mascota al editar)
+              </small>
+            </div>
+
+            <div class="field">
+              <label>Fecha *</label>
+              <input pInputText type="date" formControlName="fecha" class="w-full" />
+              <small class="err p-error" *ngIf="isInvalid('fecha')">
+                {{ errMsg('fecha') }}
+              </small>
+            </div>
+
+            <div class="field">
+              <label>Peso (kg)</label>
+              <input pInputText type="number" step="0.1" min="0" formControlName="peso_kg" class="w-full" />
+              <small class="hint">Opcional. Rango permitido: 0 a 120.</small>
+              <small class="err p-error" *ngIf="isInvalid('peso_kg')">
+                {{ errMsg('peso_kg') }}
+              </small>
+            </div>
+
+            <div class="field" style="justify-content:flex-end;">
+              <label>Esterilizado</label>
+              <div class="flex align-items-center gap-2" style="height: 2.4rem;">
+                <p-checkbox formControlName="esterilizado" [binary]="true" inputId="esterilizado"></p-checkbox>
+                <label for="esterilizado" class="font-medium">Sí</label>
+              </div>
+              <small class="hint">Marca si la mascota ya fue esterilizada.</small>
+            </div>
+          </div>
+
+          <div class="step-actions right">
+            <button pButton type="button" label="Siguiente" icon="pi pi-arrow-right" iconPos="right" (click)="goNext()"></button>
+          </div>
+        </ng-container>
+
+        <!-- ===== STEP 2: Estado clínico ===== -->
+        <ng-container *ngIf="stepIndex === 1">
+          <div class="section-title">
+            <h6>Estado clínico</h6>
+            <small class="hint">Valores numéricos con validación de rango.</small>
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label>Actitud</label>
+              <p-select
+                [options]="actitudOptions"
+                optionLabel="label"
+                optionValue="value"
+                formControlName="actitud"
+                class="w-full"
+                placeholder="(Opcional)"
+              ></p-select>
+            </div>
+
+            <div class="field">
+              <label>Condición corporal</label>
+              <p-select
+                [options]="condicionOptions"
+                optionLabel="label"
+                optionValue="value"
+                formControlName="condicion_corporal"
+                class="w-full"
+                placeholder="(Opcional)"
+              ></p-select>
+            </div>
+
+            <div class="field">
+              <label>Deshidratación</label>
+              <p-select
+                [options]="deshidratacionOptions"
+                optionLabel="label"
+                optionValue="value"
+                formControlName="estado_deshidratacion"
+                class="w-full"
+                placeholder="(Opcional)"
+              ></p-select>
+            </div>
+
+            <div class="field">
+              <label>Temperatura (°C)</label>
+              <input pInputText type="number" step="0.1" formControlName="temperatura_c" class="w-full" />
+              <small class="hint">Opcional. Rango recomendado: 30 a 45.</small>
+              <small class="err p-error" *ngIf="isInvalid('temperatura_c')">
+                {{ errMsg('temperatura_c') }}
+              </small>
+            </div>
+
+            <div class="field">
+              <label>Frecuencia cardíaca (lpm)</label>
+              <input pInputText type="number" min="0" formControlName="frec_cardiaca_lpm" class="w-full" />
+              <small class="hint">Opcional. Rango permitido: 0 a 400.</small>
+              <small class="err p-error" *ngIf="isInvalid('frec_cardiaca_lpm')">
+                {{ errMsg('frec_cardiaca_lpm') }}
+              </small>
+            </div>
+
+            <div class="field">
+              <label>Frecuencia respiratoria (rpm)</label>
+              <input pInputText type="number" min="0" formControlName="frec_respiratoria_rpm" class="w-full" />
+              <small class="hint">Opcional. Rango permitido: 0 a 200.</small>
+              <small class="err p-error" *ngIf="isInvalid('frec_respiratoria_rpm')">
+                {{ errMsg('frec_respiratoria_rpm') }}
+              </small>
+            </div>
+
+            <div class="field">
+              <label>Enfermedades anteriores</label>
+              <input pInputText formControlName="enfermedades_anteriores" class="w-full" />
+              <small class="err p-error" *ngIf="isInvalid('enfermedades_anteriores')">
+                {{ errMsg('enfermedades_anteriores') }}
+              </small>
+            </div>
+
+            <div class="field">
+              <label>Alergias</label>
+              <input pInputText formControlName="alergias" class="w-full" />
+              <small class="err p-error" *ngIf="isInvalid('alergias')">
+                {{ errMsg('alergias') }}
+              </small>
+            </div>
+          </div>
+
+          <div class="step-actions">
+            <button pButton type="button" label="Atrás" icon="pi pi-arrow-left" class="p-button-text" (click)="goBack()"></button>
+            <button pButton type="button" label="Siguiente" icon="pi pi-arrow-right" iconPos="right" (click)="goNext()"></button>
+          </div>
+        </ng-container>
+
+        <!-- ===== STEP 3: Mucosas y notas ===== -->
+        <ng-container *ngIf="stepIndex === 2">
+          <div class="section-title">
+            <h6>Mucosas y notas</h6>
+            <small class="hint">Opcional, pero recomendado completar.</small>
+          </div>
+
+          <div class="form-grid">
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>Mucosas</label>
+              <div class="mucosa-grid">
+                <div class="field">
+                  <label class="hint">Oral / conjuntival</label>
+                  <p-select
+                    [options]="mucosaEstadoOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    formControlName="mucosa_oral_conjuntival"
+                    class="w-full"
+                    placeholder="Seleccione"
+                  ></p-select>
+                </div>
+
+                <div class="field">
+                  <label class="hint">Piel</label>
+                  <p-select
+                    [options]="mucosaEstadoOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    formControlName="mucosa_piel"
+                    class="w-full"
+                    placeholder="Seleccione"
+                  ></p-select>
+                </div>
+
+                <div class="field">
+                  <label class="hint">Íntima</label>
+                  <p-select
+                    [options]="mucosaEstadoOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    formControlName="mucosa_intima"
+                    class="w-full"
+                    placeholder="Seleccione"
+                  ></p-select>
+                </div>
+
+                <div class="field">
+                  <label class="hint">Rectal</label>
+                  <p-select
+                    [options]="mucosaEstadoOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    formControlName="mucosa_rectal"
+                    class="w-full"
+                    placeholder="Seleccione"
+                  ></p-select>
+                </div>
+
+                <div class="field">
+                  <label class="hint">Ojos</label>
+                  <p-select
+                    [options]="mucosaEstadoOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    formControlName="mucosa_ojos"
+                    class="w-full"
+                    placeholder="Seleccione"
+                  ></p-select>
+                </div>
+
+                <div class="field">
+                  <label class="hint">Nódulos</label>
+                  <p-select
+                    [options]="mucosaEstadoOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    formControlName="mucosa_nodulos"
+                    class="w-full"
+                    placeholder="Seleccione"
+                  ></p-select>
+                </div>
+              </div>
+            </div>
+
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>Locomoción / Observación</label>
+              <input pInputText formControlName="locomocion" class="w-full" />
+              <small class="err p-error" *ngIf="isInvalid('locomocion')">
+                {{ errMsg('locomocion') }}
+              </small>
+            </div>
+          </div>
+
+          <div class="step-actions">
+            <button pButton type="button" label="Atrás" icon="pi pi-arrow-left" class="p-button-text" (click)="goBack()"></button>
+
+            <button
+              pButton
+              type="button"
+              label="Guardar"
+              icon="pi pi-check"
+              (click)="save()"
+              [disabled]="form.invalid || saving"
+            ></button>
+          </div>
+        </ng-container>
+      </form>
+    </div>
+
+    <!-- Footer general (solo cancelar) -->
+    <div class="flex justify-content-end gap-2 mt-3">
+      <button pButton label="Cancelar" icon="pi pi-times" class="p-button-text" type="button" (click)="closeDialog()"></button>
+    </div>
+  </p-dialog>
+
+  <!-- CONFIRM DELETE -->
+  <p-dialog
+    [(visible)]="confirmVisible"
+    [modal]="true"
+    [closable]="false"
+    [draggable]="false"
+    [style]="{ width: '360px', maxWidth: '90vw' }"
+    [baseZIndex]="11000"
+    [dismissableMask]="false"
+    header="Confirmar eliminación"
+  >
+    <div class="flex flex-column gap-3" style="text-align:center;">
+      <i class="pi pi-exclamation-triangle" style="font-size:2rem;"></i>
+      <p class="m-0">
+        ¿Seguro que desea eliminar la cartilla<br />
+        <strong>#{{ cartillaToDelete?.id }}</strong>?
+      </p>
+      <small *ngIf="deleteError" class="p-error">{{ deleteError }}</small>
+    </div>
+
+    <div class="flex justify-content-end gap-2 mt-4">
+      <button pButton label="Cancelar" icon="pi pi-times" class="p-button-text" type="button" (click)="cancelDelete()"></button>
+      <button pButton label="Eliminar" icon="pi pi-trash" severity="danger" type="button" (click)="confirmDelete()"></button>
+    </div>
+  </p-dialog>
+</div>

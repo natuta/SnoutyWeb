@@ -1,0 +1,197 @@
+<p-toast position="top-center"></p-toast>
+
+<div class="snouty-page">
+  <div class="snouty-card">
+    <div class="snouty-head">
+      <div>
+        <h2 class="snouty-title">Gestión de Especies</h2>
+        <p class="snouty-subtitle">Administra las especies registradas</p>
+      </div>
+
+      <button
+        pButton
+        type="button"
+        label="Nueva especie"
+        icon="pi pi-plus"
+        class="snouty-btn-primary"
+        (click)="openNew()"
+        [disabled]="!isAdmin"
+      ></button>
+    </div>
+
+    <div class="snouty-toolbar">
+      <div class="snouty-search">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          placeholder="Buscar por nombre..."
+          [(ngModel)]="globalFilter"
+          (input)="applyGlobalFilter($event)"
+        />
+      </div>
+    </div>
+
+    <div class="snouty-tablewrap">
+      <p-table
+        #dt
+        [value]="especies"
+        [paginator]="true"
+        [rows]="6"
+        [loading]="loading"
+        dataKey="id"
+        [globalFilterFields]="['nombre']"
+        styleClass="p-datatable-sm"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            <th style="width: 6rem">ID</th>
+            <th>Nombre</th>
+            <th style="width: 6rem" *ngIf="isAdmin" class="actions-cell">Acciones</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-row>
+          <tr>
+            <td>{{ row.id }}</td>
+            <td>
+              <div class="snouty-rowname">
+                <i class="pi pi-tag"></i>
+                <span>{{ row.nombre }}</span>
+              </div>
+            </td>
+
+            <td *ngIf="isAdmin" class="actions-cell">
+              <button
+                pButton
+                icon="pi pi-trash"
+                rounded
+                text
+                severity="danger"
+                (click)="openDeleteConfirm(row)"
+                title="Eliminar"
+              ></button>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td [attr.colspan]="isAdmin ? 3 : 2" class="snouty-empty">
+              No hay especies registradas.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  </div>
+</div>
+
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [closable]="false"
+  [draggable]="false"
+  [dismissableMask]="false"
+  [breakpoints]="{ '1200px': '40vw', '960px': '55vw', '640px': '92vw' }"
+  [style]="{ width: '420px', maxWidth: '92vw' }"
+  header="Nueva especie"
+>
+  <form [formGroup]="form" class="p-fluid" style="display:flex; flex-direction:column; gap:1rem;">
+    <div class="field-col">
+      <label>Nombre *</label>
+
+      <input
+        pInputText
+        formControlName="nombre"
+        placeholder="Ej: Canino"
+        maxlength="80"
+        (blur)="touch('nombre')"
+      />
+
+      <div style="margin-top:.25rem;">
+        <small class="p-error" *ngIf="hasError('nombre','required')">El nombre es obligatorio.</small>
+        <small class="p-error" *ngIf="hasError('nombre','minlength')">Debe tener al menos 2 caracteres.</small>
+        <small class="p-error" *ngIf="hasError('nombre','maxlength')">Máximo 80 caracteres.</small>
+        <small class="p-error" *ngIf="hasError('nombre','pattern')">Solo se permiten letras y espacios.</small>
+      </div>
+    </div>
+
+    <div
+      *ngIf="formError"
+      style="display:flex;align-items:center;gap:.5rem;padding:.75rem;border-radius:12px;background:#fdecec;color:#7a1f1f;"
+    >
+      <i class="pi pi-exclamation-circle"></i>
+      <span>{{ formError }}</span>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <div class="footer-actions">
+      <button
+        pButton
+        label="Cancelar"
+        icon="pi pi-times"
+        type="button"
+        class="p-button-text"
+        (click)="closeDialog()"
+        [disabled]="saving"
+      ></button>
+
+      <button
+        pButton
+        label="Guardar"
+        icon="pi pi-check"
+        type="button"
+        class="snouty-btn-primary"
+        (click)="save()"
+        [disabled]="saving || form.invalid"
+      ></button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<p-dialog
+  [(visible)]="confirmVisible"
+  [modal]="true"
+  [closable]="false"
+  [draggable]="false"
+  [dismissableMask]="false"
+  [style]="{ width: '380px', maxWidth: '92vw' }"
+  header="Confirmar eliminación"
+>
+  <div style="text-align:center;display:flex;flex-direction:column;gap:.75rem;padding-top:.25rem;">
+    <i class="pi pi-exclamation-triangle" style="font-size:2rem;"></i>
+
+    <p class="m-0">
+      ¿Seguro que desea eliminar la especie
+      <strong>"{{ especieToDelete?.nombre }}"</strong>?
+    </p>
+
+    <small *ngIf="deleteError" class="p-error">{{ deleteError }}</small>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="footer-actions">
+      <button
+        pButton
+        label="Cancelar"
+        icon="pi pi-times"
+        type="button"
+        class="p-button-text"
+        (click)="cancelDelete()"
+        [disabled]="deleting"
+      ></button>
+
+      <button
+        pButton
+        label="Eliminar"
+        icon="pi pi-trash"
+        severity="danger"
+        type="button"
+        (click)="confirmDelete()"
+        [disabled]="deleting"
+      ></button>
+    </div>
+  </ng-template>
+</p-dialog>

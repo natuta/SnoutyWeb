@@ -1,0 +1,485 @@
+<p-toast></p-toast>
+
+<div class="card">
+  <div class="flex justify-content-between align-items-center mb-3">
+    <h5 class="m-0">Seguimiento de adopción</h5>
+
+    <!-- ✅ LOADING -->
+    <div class="flex align-items-center gap-2" *ngIf="loading">
+      <i class="pi pi-spin pi-spinner"></i>
+      <small class="text-color-secondary">Cargando...</small>
+    </div>
+  </div>
+
+  <!-- SIN SESIÓN -->
+  <div *ngIf="!user">
+    <p>No hay sesión activa.</p>
+  </div>
+
+  <!-- ===================================================== -->
+  <!-- ============================ ADMIN =================== -->
+  <!-- ===================================================== -->
+  <ng-container *ngIf="user && isAdmin">
+    <div class="p-3 border-round mb-3" style="background:#e7f3ff;">
+      <strong>Modo ADMIN:</strong> vista de solo lectura (configs, solicitudes y evidencias).
+    </div>
+
+    <!-- CONFIGS -->
+    <h6 class="mt-0">Configuraciones de seguimiento (todas)</h6>
+    <p-table [value]="adminConfigs" [paginator]="true" [rows]="8" dataKey="id">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:6rem;">ID</th>
+          <th style="width:8rem;">Solicitud</th>
+          <th>Mascota</th>
+          <th>Tutor</th>
+          <th>Adoptante</th>
+          <th style="width:7rem;">Modo</th>
+          <th style="width:9rem;">Frecuencia</th>
+          <th style="width:8rem;">Inicio</th>
+          <th style="width:8rem;">Activo</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-c>
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>{{ c.solicitud }}</td>
+          <td>{{ c.mascota_nombre || '-' }}</td>
+          <td>{{ c.tutor_email || '-' }}</td>
+          <td>{{ c.adoptante_email || '-' }}</td>
+          <td>{{ c.modo || '-' }}</td>
+          <td>{{ c.frecuencia || '-' }}</td>
+          <td>{{ c.inicio || '-' }}</td>
+          <td>
+            <span [class]="c.activo ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'">
+              {{ c.activo ? 'Sí' : 'No' }}
+            </span>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr><td colspan="9">No hay configuraciones de seguimiento.</td></tr>
+      </ng-template>
+    </p-table>
+
+    <!-- SOLICITUDES APROBADAS -->
+    <h6 class="mt-4">Solicitudes APROBADAS (todas)</h6>
+    <p-table [value]="adminSolicitudesAprobadas" [paginator]="true" [rows]="8" dataKey="id">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:6rem;">ID</th>
+          <th>Mascota</th>
+          <th>Tutor</th>
+          <th>Adoptante</th>
+          <th style="width:10rem;">Estado</th>
+          <th style="width:10rem;">Actualizado</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-s>
+        <tr>
+          <td>{{ s.id }}</td>
+          <td>{{ s.mascota_nombre || '-' }}</td>
+          <td>{{ s.tutor_email || '-' }}</td>
+          <td>{{ s.adoptante_email || '-' }}</td>
+          <td>{{ s.estado || 'APROBADA' }}</td>
+          <td>{{ s.updated_at || '-' }}</td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr><td colspan="6">No hay solicitudes aprobadas.</td></tr>
+      </ng-template>
+    </p-table>
+
+    <!-- EVIDENCIAS -->
+    <h6 class="mt-4">Evidencias (todas)</h6>
+    <p-table [value]="adminEvidencias" [paginator]="true" [rows]="8" dataKey="id">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:6rem;">ID</th>
+          <th style="width:8rem;">Solicitud</th>
+          <th style="width:8rem;">Fecha</th>
+          <th>Obs</th>
+          <th style="width:10rem;">Imagen</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-e>
+        <tr>
+          <td>{{ e.id }}</td>
+          <td>{{ e.solicitud }}</td>
+          <td>{{ e.fecha }}</td>
+          <td>{{ e.obs || '-' }}</td>
+          <td>
+            <a *ngIf="(e.imagen_url || e.s3_url)" [href]="(e.imagen_url || e.s3_url)!" target="_blank">
+              Ver
+            </a>
+            <span *ngIf="!(e.imagen_url || e.s3_url)">-</span>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr><td colspan="5">No hay evidencias registradas.</td></tr>
+      </ng-template>
+    </p-table>
+  </ng-container>
+
+  <!-- ===================================================== -->
+  <!-- ============================ TUTOR =================== -->
+  <!-- ===================================================== -->
+  <ng-container *ngIf="user && isTutor">
+    <h6 class="mt-0">Solicitudes APROBADAS (mis mascotas)</h6>
+
+    <p-table [value]="tutorSolicitudesAprobadas" [paginator]="true" [rows]="8" dataKey="id">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:6rem;">ID</th>
+          <th>Mascota</th>
+          <th>Adoptante</th>
+          <th style="width:12rem;">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-s>
+        <tr>
+          <td>{{ s.id }}</td>
+          <td>{{ s.mascota_nombre || '-' }}</td>
+          <td>{{ s.adoptante_email || '-' }}</td>
+          <td>
+            <button
+              pButton
+              type="button"
+              label="Ver / Configurar"
+              icon="pi pi-cog"
+              class="p-button-sm"
+              (click)="openTutorDialogConfig(s)"
+            ></button>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr><td colspan="4">No hay solicitudes aprobadas.</td></tr>
+      </ng-template>
+    </p-table>
+
+    <!-- DIALOG CONFIGURAR -->
+    <p-dialog
+      [(visible)]="dialogTutorVisible"
+      [modal]="true"
+      [closable]="false"
+      [draggable]="false"
+      [style]="{ width: '520px', maxWidth: '95vw' }"
+      header="Seguimiento (Tutor)"
+    >
+      <form [formGroup]="formConfig" class="p-fluid" style="display:flex; flex-direction:column; gap:1rem;">
+        <div class="field">
+          <label class="font-medium">Solicitud ID</label>
+          <input pInputText type="number" formControlName="solicitud" />
+        </div>
+
+        <div class="field">
+          <label class="font-medium">Modo</label>
+
+          <ng-container *ngIf="!selectedTutorConfig; else modoRead">
+            <select formControlName="modo" class="p-inputtext p-component">
+              <option value="MANUAL">MANUAL</option>
+              <option value="AUTO">AUTO</option>
+            </select>
+            <small class="text-color-secondary">
+              MANUAL: el tutor solicita evidencia. AUTO: el sistema usa frecuencia.
+            </small>
+          </ng-container>
+
+          <ng-template #modoRead>
+            <input pInputText [value]="selectedTutorConfig?.modo" disabled />
+          </ng-template>
+        </div>
+
+        <div class="field" *ngIf="!selectedTutorConfig && formConfig.get('modo')?.value === 'AUTO'">
+          <label class="font-medium">Frecuencia</label>
+          <select formControlName="frecuencia" class="p-inputtext p-component">
+            <option [ngValue]="null">-- seleccionar --</option>
+            <option value="DIARIO">DIARIO</option>
+            <option value="SEMANAL">SEMANAL</option>
+            <option value="QUINCENAL">QUINCENAL</option>
+            <option value="MENSUAL">MENSUAL</option>
+            <option value="TRIMESTRAL">TRIMESTRAL</option>
+          </select>
+          <small class="text-color-secondary">
+            Se usa para calcular “al día vs atrasado”.
+          </small>
+        </div>
+
+        <div class="field">
+          <label class="font-medium">Activo</label>
+          <div class="flex align-items-center gap-2">
+            <input type="checkbox" formControlName="activo" [disabled]="!!selectedTutorConfig" />
+            <span class="text-color-secondary">
+              {{ formConfig.get('activo')?.value ? 'Sí' : 'No' }}
+            </span>
+          </div>
+          <small class="text-color-secondary">
+            Activo = permite recibir evidencias y enviar recordatorios.
+          </small>
+        </div>
+
+        <div *ngIf="selectedTutorConfig" class="p-2 border-round" style="background:#f8f9fa;">
+          <div class="flex justify-content-between">
+            <span class="font-medium">Estado:</span>
+            <span>
+              <b *ngIf="selectedTutorConfig.inicio; else noInicio">INICIADO</b>
+              <ng-template #noInicio><b>NO INICIADO</b></ng-template>
+            </span>
+          </div>
+          <div class="flex justify-content-between mt-1">
+            <span class="font-medium">Inicio:</span>
+            <span>{{ selectedTutorConfig.inicio || '-' }}</span>
+          </div>
+          <div class="flex justify-content-between mt-1" *ngIf="selectedTutorConfig.modo === 'AUTO'">
+            <span class="font-medium">Próximo envío:</span>
+            <span>{{ selectedTutorConfig.proximo_envio || '-' }}</span>
+          </div>
+        </div>
+
+        <div class="mt-2" *ngIf="selectedTutorConfig?.inicio">
+          <h6 class="m-0">Evidencias subidas por el adoptante</h6>
+
+          <p-table [value]="tutorEvidenciasSolicitud" [paginator]="true" [rows]="5" dataKey="id" class="mt-2">
+            <ng-template pTemplate="header">
+              <tr>
+                <th style="width:6rem;">ID</th>
+                <th style="width:8rem;">Fecha</th>
+                <th>Obs</th>
+                <th style="width:10rem;">Imagen</th>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-e>
+              <tr>
+                <td>{{ e.id }}</td>
+                <td>{{ e.fecha }}</td>
+                <td>{{ e.obs || '-' }}</td>
+                <td>
+                  <a *ngIf="(e.imagen_url || e.s3_url)" [href]="(e.imagen_url || e.s3_url)!" target="_blank">Ver</a>
+                  <span *ngIf="!(e.imagen_url || e.s3_url)">-</span>
+                </td>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="4">Aún no hay evidencias para esta solicitud.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </form>
+
+      <div class="flex justify-content-end gap-2 mt-3">
+        <button
+          *ngIf="!selectedTutorConfig"
+          pButton
+          type="button"
+          label="Guardar configuración"
+          icon="pi pi-save"
+          (click)="guardarTutorConfig()"
+          [disabled]="formConfig.invalid || loading"
+        ></button>
+
+        <button
+          *ngIf="selectedTutorConfig && !selectedTutorConfig.inicio"
+          pButton
+          type="button"
+          label="Iniciar seguimiento"
+          icon="pi pi-play"
+          class="p-button-success"
+          (click)="iniciarSeguimientoTutor()"
+          [disabled]="loading"
+        ></button>
+
+        <button
+          *ngIf="selectedTutorConfig && selectedTutorConfig.modo === 'MANUAL'"
+          pButton
+          type="button"
+          label="Solicitar evidencia"
+          icon="pi pi-envelope"
+          class="p-button-warning"
+          (click)="solicitarEvidenciaTutor()"
+          [disabled]="!canSolicitarEvidenciaManual() || loading"
+        ></button>
+      </div>
+
+      <div class="flex justify-content-end gap-2 mt-4">
+        <button
+          pButton
+          type="button"
+          class="p-button-text"
+          label="Cerrar"
+          icon="pi pi-times"
+          (click)="closeTutorDialog()"
+          [disabled]="loading"
+        ></button>
+      </div>
+    </p-dialog>
+  </ng-container>
+
+  <!-- ===================================================== -->
+  <!-- ========================== ADOPTANTE ================= -->
+  <!-- ===================================================== -->
+  <ng-container *ngIf="user && isAdoptante">
+    <h6 class="mt-0">Mis solicitudes APROBADAS con seguimiento iniciado</h6>
+
+    <p-table [value]="adoptanteSolicitudesAprobadasConSeguimiento" [paginator]="true" [rows]="8" dataKey="id">
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:6rem;">ID</th>
+          <th>Mascota</th>
+          <th>Tutor</th>
+          <th style="width:12rem;">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-s>
+        <tr>
+          <td>{{ s.id }}</td>
+          <td>{{ s.mascota_nombre || '-' }}</td>
+          <td>{{ s.tutor_email || '-' }}</td>
+          <td>
+            <button
+              pButton
+              type="button"
+              label="Ver evidencias"
+              icon="pi pi-eye"
+              class="p-button-sm p-button-info"
+              (click)="openAdoptanteEvidenciasDialog(s)"
+              [disabled]="loading"
+            ></button>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr><td colspan="4">No tienes solicitudes aprobadas con seguimiento iniciado.</td></tr>
+      </ng-template>
+    </p-table>
+
+    <p-dialog
+      [(visible)]="dialogEvidenciaVisible"
+      [modal]="true"
+      [closable]="false"
+      [draggable]="false"
+      [style]="{ width: '520px', maxWidth: '95vw' }"
+      header="Mis evidencias"
+    >
+      <form [formGroup]="uploadForm" class="p-fluid" style="display:flex; flex-direction:column; gap:1rem;">
+        <div class="field">
+          <label class="font-medium">Solicitud ID</label>
+          <input pInputText type="number" formControlName="solicitud_id" />
+        </div>
+
+        <div class="field">
+          <label class="font-medium">Fecha (opcional)</label>
+          <input pInputText type="date" formControlName="fecha" />
+        </div>
+
+        <div class="field">
+          <label class="font-medium">Observación (opcional)</label>
+          <input pInputText type="text" formControlName="obs" />
+        </div>
+
+        <div class="field">
+          <label class="font-medium">Archivo *</label>
+
+          <div class="flex gap-2 align-items-center">
+            <button
+              pButton
+              type="button"
+              label="Seleccionar"
+              icon="pi pi-upload"
+              (click)="fileInput.click()"
+              [disabled]="loading"
+            ></button>
+
+            <button
+              *ngIf="selectedFile"
+              pButton
+              type="button"
+              label="Quitar"
+              icon="pi pi-times"
+              class="p-button-text p-button-sm"
+              (click)="clearFile()"
+              [disabled]="loading"
+            ></button>
+          </div>
+
+          <input
+            #fileInput
+            type="file"
+            accept="image/*"
+            (change)="onFileSelected($event)"
+            style="display:none"
+          />
+
+          <small *ngIf="selectedFile" class="text-color-secondary">
+            Seleccionado: {{ selectedFile.name }}
+          </small>
+        </div>
+
+        <button
+          pButton
+          type="button"
+          label="Enviar evidencia"
+          icon="pi pi-send"
+          (click)="enviarEvidenciaAdoptante()"
+          [disabled]="!selectedFile || loading"
+        ></button>
+
+        <div class="mt-3">
+          <h6 class="m-0">Evidencias enviadas</h6>
+
+          <p-table [value]="evidenciasDeSolicitud" [paginator]="true" [rows]="5" dataKey="id" class="mt-2">
+            <ng-template pTemplate="header">
+              <tr>
+                <th style="width:6rem;">ID</th>
+                <th style="width:8rem;">Fecha</th>
+                <th>Obs</th>
+                <th style="width:10rem;">Imagen</th>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-e>
+              <tr>
+                <td>{{ e.id }}</td>
+                <td>{{ e.fecha }}</td>
+                <td>{{ e.obs || '-' }}</td>
+                <td>
+                  <a *ngIf="(e.imagen_url || e.s3_url)" [href]="(e.imagen_url || e.s3_url)!" target="_blank">Ver</a>
+                  <span *ngIf="!(e.imagen_url || e.s3_url)">-</span>
+                </td>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="emptymessage">
+              <tr><td colspan="4">Aún no subiste evidencias.</td></tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </form>
+
+      <div class="flex justify-content-end gap-2 mt-4">
+        <button
+          pButton
+          type="button"
+          class="p-button-text"
+          label="Cerrar"
+          icon="pi pi-times"
+          (click)="closeAdoptanteEvidenciasDialog()"
+          [disabled]="loading"
+        ></button>
+      </div>
+    </p-dialog>
+  </ng-container>
+</div>

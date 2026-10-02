@@ -1,0 +1,209 @@
+<p-toast position="top-center"></p-toast>
+
+<div class="snouty-page">
+  <div class="snouty-container">
+    <div class="snouty-card">
+      <div class="card-head">
+        <div>
+          <h2 class="title">{{ tituloLista }}</h2>
+          <p class="subtitle">Busca un usuario y revisa o registra valoraciones.</p>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search">
+          <i class="pi pi-search"></i>
+
+          <p-autoComplete
+            class="valoraciones-autocomplete"
+            [(ngModel)]="searchValue"
+            [suggestions]="suggestions"
+            (completeMethod)="buscarUsuario($event)"
+            (onSelect)="onSelectUsuario($event)"
+            (onClear)="onClearSearch()"
+            [showClear]="true"
+            [forceSelection]="false"
+            placeholder="Buscar por nombre, apellido o correo..."
+          ></p-autoComplete>
+
+          <button
+            pButton
+            type="button"
+            icon="pi pi-times"
+            class="p-button-text icon-btn"
+            (click)="onClearSearch()"
+            title="Limpiar"
+          ></button>
+        </div>
+
+        <div class="admin-banner" *ngIf="isAdmin">
+          ADMIN: Solo lectura (no puedes crear valoraciones).
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <p-table
+          [value]="filteredUsuarios"
+          [paginator]="true"
+          [rows]="8"
+          dataKey="id"
+          styleClass="p-datatable-sm"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Usuario</th>
+              <th style="width: 10rem;">Promedio</th>
+              <th style="width: 10rem;">Total</th>
+              <th style="width: 9rem;">Acciones</th>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="body" let-row>
+            <tr>
+              <td>{{ row.displayName }}</td>
+              <td>{{ row.promedio_puntuacion || 0 }}</td>
+              <td>{{ row.total_valoraciones || 0 }}</td>
+              <td>
+                <button
+                  pButton
+                  type="button"
+                  label="Ver"
+                  icon="pi pi-eye"
+                  class="p-button-text"
+                  (click)="abrirDetalle(row)"
+                ></button>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="4" style="text-align:center; padding: 1.5rem; color:#6b7280;">
+                No hay usuarios para mostrar.
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+
+    <p-dialog
+      [(visible)]="displayDialog"
+      [modal]="true"
+      [draggable]="false"
+      [dismissableMask]="false"
+      [breakpoints]="{ '1200px': '50vw', '960px': '70vw', '640px': '92vw' }"
+      [style]="{ width: '50vw', maxWidth: '860px' }"
+      [header]="selectedUsuario ? selectedUsuario.displayName : 'Detalle'"
+    >
+      <div>
+        <p-steps [model]="steps" [activeIndex]="stepIndex"></p-steps>
+
+        <div style="margin-top: 1rem; display:flex; gap:.5rem; justify-content:center;">
+          <button
+            pButton
+            type="button"
+            label="Nueva valoración"
+            class="p-button-text"
+            (click)="irA(0)"
+            [disabled]="isAdmin"
+          ></button>
+
+          <button
+            pButton
+            type="button"
+            label="Recibidas"
+            class="p-button-text"
+            (click)="irA(1)"
+          ></button>
+        </div>
+
+        <div *ngIf="stepIndex === 0" style="margin-top: 1rem;">
+          <h3 class="section-title">Nueva valoración</h3>
+
+          <form [formGroup]="valoracionForm" class="form-grid">
+            <div style="text-align:center;">
+              <p-rating formControlName="puntuacion"></p-rating>
+            </div>
+
+            <small class="error-text" *ngIf="submitted && f['puntuacion'].invalid">
+              La puntuación es obligatoria (mínimo 1 estrella).
+            </small>
+
+            <textarea
+              class="textarea"
+              rows="4"
+              formControlName="comentario"
+              placeholder="Comentario (opcional, máx 280)"
+            ></textarea>
+
+            <small class="error-text" *ngIf="submitted && f['comentario'].hasError('maxlength')">
+              Máximo 280 caracteres.
+            </small>
+
+            <div style="display:flex; justify-content:flex-end; gap:.5rem;">
+              <button
+                pButton
+                type="button"
+                class="p-button-text"
+                label="Cerrar"
+                icon="pi pi-times"
+                (click)="displayDialog=false"
+              ></button>
+
+              <button
+                pButton
+                type="button"
+                label="Guardar"
+                icon="pi pi-check"
+                (click)="guardarValoracion()"
+                [disabled]="savingValoracion || isAdmin"
+              ></button>
+            </div>
+
+            <div class="hint" *ngIf="isAdmin">
+              ADMIN solo puede ver valoraciones.
+            </div>
+          </form>
+        </div>
+
+        <div *ngIf="stepIndex === 1" style="margin-top: 1rem;">
+          <h3 class="section-title">Valoraciones recibidas</h3>
+
+          <p-table
+            [value]="valoracionesUsuario"
+            [paginator]="true"
+            [rows]="6"
+            styleClass="p-datatable-sm"
+          >
+            <ng-template pTemplate="header">
+              <tr>
+                <th style="width: 10rem;">Puntuación</th>
+                <th>Comentario</th>
+                <th style="width: 11rem;">Fecha</th>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="body" let-v>
+              <tr>
+                <td>
+                  <p-rating [ngModel]="v.puntuacion" [readonly]="true"></p-rating>
+                </td>
+                <td>{{ v.comentario || '-' }}</td>
+                <td>{{ v.creado_en | date:'yyyy-MM-dd' }}</td>
+              </tr>
+            </ng-template>
+
+            <ng-template pTemplate="emptymessage">
+              <tr>
+                <td colspan="3" style="text-align:center; padding: 1.5rem; color:#6b7280;">
+                  No hay valoraciones registradas.
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </div>
+      </div>
+    </p-dialog>
+  </div>
+</div>

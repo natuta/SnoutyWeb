@@ -1,0 +1,213 @@
+<p-toast position="top-center" styleClass="snouty-toast-center"></p-toast>
+
+<div class="snouty-page" [ngStyle]="{ 'background-image': bgStyle }">
+  <div class="snouty-shell">
+    <div *ngIf="isAdoptante; else contenido" class="deny-card">
+      <h3 class="m-0">Acceso denegado</h3>
+      <p class="mt-2 mb-0">
+        Esta sección es solo para <strong>tutores</strong> y <strong>administradores</strong>.
+      </p>
+    </div>
+
+    <ng-template #contenido>
+      <div class="snouty-card">
+        <div class="snouty-card-head">
+          <div class="snouty-card-title">
+            <h2>Fotos de Mascotas</h2>
+            <p class="snouty-card-sub">Sube y administra imágenes asociadas a tus mascotas.</p>
+          </div>
+
+          <button
+            *ngIf="canAdd"
+            pButton
+            type="button"
+            label="Nueva foto"
+            icon="pi pi-plus"
+            class="snouty-btn-primary"
+            (click)="openNew()"
+          ></button>
+        </div>
+
+        <div *ngIf="loading" class="centered" style="padding: 1.25rem;">
+          <p-progressSpinner></p-progressSpinner>
+          <div class="muted-dark" style="margin-top: 0.75rem;">Cargando...</div>
+        </div>
+
+        <p-table
+          *ngIf="!loading"
+          class="snouty-table"
+          [value]="fotos"
+          [paginator]="true"
+          [rows]="10"
+          dataKey="id"
+          [tableStyle]="{ 'min-width': '60rem' }"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th style="width:5rem">ID</th>
+              <th>Mascota</th>
+              <th>URL</th>
+              <th>Fecha</th>
+              <th style="width:8rem; text-align:right;">Acciones</th>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="body" let-row>
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>{{ nombreMascota(row.mascota_id) }}</td>
+              <td style="word-break: break-all;">{{ row.imagen_url || row.s3_url || '-' }}</td>
+              <td>{{ row.fecha }}</td>
+              <td class="actions-cell">
+                <button
+                  *ngIf="canDelete"
+                  pButton
+                  icon="pi pi-trash"
+                  rounded
+                  text
+                  severity="danger"
+                  type="button"
+                  (click)="openDeleteConfirm(row)"
+                ></button>
+              </td>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="5" class="empty-msg">No hay fotos registradas.</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+
+      <p-dialog
+        [(visible)]="dialogVisible"
+        [modal]="true"
+        [closable]="false"
+        [draggable]="false"
+        [breakpoints]="{ '1200px': '45vw', '960px': '60vw', '640px': '92vw' }"
+        [style]="{ width: '44vw', maxWidth: '560px' }"
+        [baseZIndex]="10000"
+        [dismissableMask]="false"
+        header="Nueva foto"
+      >
+        <div class="dialog-wrap">
+          <form [formGroup]="form" class="p-fluid" style="display:flex; flex-direction:column; gap:1rem;">
+            <div class="step-row">
+              <span class="step-chip"><i class="pi pi-check-circle"></i> Paso 1: Mascota</span>
+              <div class="field">
+                <label>Mascota *</label>
+                <p-autoComplete
+                  formControlName="mascota"
+                  [suggestions]="mascotasFiltradas"
+                  (completeMethod)="filtrarMascotas($event)"
+                  [dropdown]="true"
+                  [forceSelection]="true"
+                  [minLength]="0"
+                  [showClear]="true"
+                  optionLabel="nombre"
+                  placeholder="Escribe el nombre de tu mascota"
+                  class="w-full"
+                >
+                  <ng-template pTemplate="item" let-m>
+                    <div class="flex flex-column">
+                      <span class="font-medium">{{ m?.nombre || 'Sin nombre' }}</span>
+                      <small class="text-color-secondary">
+                        {{ m?.especie_nombre || '' }}{{ m?.raza_nombre ? '• ' + m.raza_nombre : '' }}
+                      </small>
+                    </div>
+                  </ng-template>
+                  <ng-template pTemplate="selectedItem" let-m>
+                    <span>{{ m?.nombre || '' }}</span>
+                  </ng-template>
+                </p-autoComplete>
+
+                <small class="hint muted">(Solo aparecen tus mascotas si eres tutor.)</small>
+                <small *ngIf="mascotaCtrl?.invalid && mascotaCtrl?.touched" class="p-error">Debe seleccionar una mascota.</small>
+              </div>
+            </div>
+
+            <div class="step-row">
+              <span class="step-chip"><i class="pi pi-image"></i> Paso 2: Fotos</span>
+              <div class="field">
+                <label>Fotos *</label>
+
+                <div class="flex gap-2 align-items-center mb-2">
+                  <button pButton type="button" label="Seleccionar fotos" icon="pi pi-upload" (click)="pickFiles()"></button>
+                  <button
+                    *ngIf="selectedFiles.length > 0"
+                    pButton
+                    type="button"
+                    label="Quitar todas"
+                    icon="pi pi-times"
+                    class="p-button-text p-button-sm"
+                    (click)="clearSelectedFiles()"
+                  ></button>
+                </div>
+
+                <input #fileInput type="file" accept="image/*" multiple (change)="onFilesSelected($event)" style="display:none" />
+
+                <small class="muted hint">Máx. {{ MAX_FILES }} imágenes • Máx. {{ MAX_FILE_MB }}MB por imagen</small>
+
+                <div *ngIf="selectedFiles.length > 0" class="thumb-grid">
+                  <div *ngFor="let sf of selectedFiles; let i = index" class="thumb">
+                    <div class="thumb-box"><img [src]="sf.preview" [alt]="sf.file.name" /></div>
+                    <div class="file-name">{{ sf.file.name }}</div>
+                    <button pButton type="button" icon="pi pi-times" class="p-button-text p-button-sm" (click)="removeFile(i)"></button>
+                  </div>
+                </div>
+
+                <small *ngIf="!selectedFiles.length && showFilesError" class="p-error">Debe seleccionar al menos una imagen.</small>
+              </div>
+            </div>
+
+            <div class="step-row">
+              <span class="step-chip"><i class="pi pi-calendar"></i> Paso 3: Fecha</span>
+              <div class="field">
+                <label>Fecha *</label>
+                <input pInputText type="date" formControlName="fecha" class="w-full" />
+                <small *ngIf="fechaCtrl?.invalid && fechaCtrl?.touched" class="p-error">{{ fechaErrorMessage() }}</small>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="flex justify-content-end gap-2 mt-3" style="margin-top:1.5rem;">
+          <button pButton label="Cancelar" icon="pi pi-times" (click)="closeDialog()" class="p-button-text" type="button"></button>
+          <button
+            pButton
+            label="Guardar"
+            icon="pi pi-check"
+            (click)="save()"
+            [disabled]="form.invalid || selectedFiles.length === 0 || loading"
+            type="button"
+          ></button>
+        </div>
+      </p-dialog>
+
+      <p-dialog
+        [(visible)]="confirmVisible"
+        [modal]="true"
+        [closable]="false"
+        [draggable]="false"
+        [style]="{ width: '380px', maxWidth: '92vw' }"
+        [baseZIndex]="11000"
+        [dismissableMask]="false"
+        header="Confirmar eliminación"
+      >
+        <div class="flex flex-column gap-3 centered">
+          <i class="pi pi-exclamation-triangle" style="font-size:2rem;"></i>
+          <ng-container *ngIf="fotoToDelete as f">
+            <p class="m-0">¿Seguro que desea eliminar la foto de <br /><strong>"{{ nombreMascota(f.mascota_id) }}"</strong>?</p>
+          </ng-container>
+        </div>
+
+        <div class="flex justify-content-end gap-2 mt-4">
+          <button pButton label="Cancelar" icon="pi pi-times" class="p-button-text" type="button" (click)="cancelDelete()"></button>
+          <button pButton label="Eliminar" icon="pi pi-trash" severity="danger" type="button" [disabled]="loading" (click)="confirmDelete()"></button>
+        </div>
+      </p-dialog>
+    </ng-template>
+  </div>
+</div>

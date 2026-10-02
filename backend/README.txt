@@ -1,0 +1,1 @@
+Backend corregido con herencia de Usuario -> Tutor/Adoptante/Admin (Django + DRF).

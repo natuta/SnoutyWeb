@@ -1,0 +1,353 @@
+<p-toast position="top-center"></p-toast>
+
+<div class="page-hero">
+  <div class="hero-title">
+    <div>
+      <h2>Gestión de Usuarios</h2>
+      <p class="hero-sub">
+        Administra usuarios, roles y estado de acceso (solo lectura para datos sensibles).
+      </p>
+    </div>
+
+    <div class="muted" *ngIf="isAdmin; else noAdmin">
+      <i class="pi pi-shield"></i>
+      <span style="margin-left:.5rem;">Modo ADMIN</span>
+    </div>
+
+    <ng-template #noAdmin>
+      <div class="muted">
+        <i class="pi pi-user"></i>
+        <span style="margin-left:.5rem;">Solo lectura</span>
+      </div>
+    </ng-template>
+  </div>
+</div>
+
+<div class="glass-card">
+  <div class="table-topbar" [formGroup]="filterForm">
+    <div class="muted">
+      <i class="pi pi-users"></i>
+      <span style="margin-left:.5rem;">
+        Total: <strong>{{ usuarios.length }}</strong>
+      </span>
+    </div>
+
+    <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
+      <span class="p-input-icon-left searchbox">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          placeholder="Buscar por email, nombres, apellidos o rol…"
+          formControlName="global"
+        />
+      </span>
+
+      <button
+        pButton
+        icon="pi pi-times"
+        rounded
+        text
+        severity="secondary"
+        title="Limpiar búsqueda"
+        type="button"
+        (click)="clearSearch()"
+      ></button>
+    </div>
+  </div>
+
+  <div class="card-inner">
+    <div *ngIf="error" class="p-message p-message-error" style="margin-bottom: 1rem;">
+      <i class="pi pi-times-circle" style="margin-right:.5rem;"></i>
+      {{ error }}
+    </div>
+
+    <p-table
+      #dt
+      [value]="usuarios"
+      [paginator]="true"
+      [rows]="10"
+      dataKey="id"
+      [rowHover]="true"
+      [loading]="loading"
+      [globalFilterFields]="['email', 'rol', 'nombres', 'apellidos']"
+      [tableStyle]="{ 'min-width': '60rem' }"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width:5rem">ID</th>
+          <th>Email</th>
+          <th>Rol</th>
+          <th>Nombres</th>
+          <th>Apellidos</th>
+          <th>Estado</th>
+          <th style="width:8rem" *ngIf="isAdmin">Acciones</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-row>
+        <tr>
+          <td>{{ row.id }}</td>
+
+          <td>
+            <div style="display:flex; align-items:center; gap:.5rem;">
+              <i class="pi pi-envelope muted"></i>
+              <span>{{ row.email }}</span>
+            </div>
+          </td>
+
+          <td>
+            <p-tag [value]="row.rol" [severity]="roleSeverity(row.rol)"></p-tag>
+          </td>
+
+          <td>{{ row.nombres }}</td>
+          <td>{{ row.apellidos }}</td>
+
+          <td>
+            <p-tag
+              [value]="row.is_active ? 'Activo' : 'Inactivo'"
+              [severity]="statusSeverity(!!row.is_active)"
+              [icon]="row.is_active ? 'pi pi-check' : 'pi pi-times'"
+            ></p-tag>
+          </td>
+
+          <td *ngIf="isAdmin">
+            <button
+              pButton
+              icon="pi pi-pencil"
+              rounded
+              text
+              severity="secondary"
+              (click)="edit(row)"
+              title="Editar"
+            ></button>
+
+            <button
+              pButton
+              icon="pi pi-trash"
+              rounded
+              text
+              severity="danger"
+              (click)="openDeleteConfirm(row)"
+              title="Eliminar"
+            ></button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
+
+<!-- EDIT DIALOG -->
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [closable]="false"
+  [draggable]="false"
+  [breakpoints]="{ '1200px': '45vw', '960px': '60vw', '640px': '92vw' }"
+  [style]="{ width: '44vw', maxWidth: '760px' }"
+  [baseZIndex]="10000"
+  [dismissableMask]="false"
+  header="Editar usuario"
+>
+  <form [formGroup]="formUser" class="p-fluid">
+    <div class="form-grid">
+      <div class="field">
+        <label>Email</label>
+        <input pInputText formControlName="email" class="w-full readonly" readonly />
+        <small class="hint">No editable</small>
+        <small class="error-text" *ngIf="showErr('email')">
+          <ng-container *ngIf="f['email'].errors?.['required']">El email es obligatorio.</ng-container>
+          <ng-container *ngIf="f['email'].errors?.['email']">Formato de email inválido.</ng-container>
+        </small>
+      </div>
+
+      <div class="field">
+        <label>Rol *</label>
+        <p-select
+          [options]="roleOptions"
+          optionLabel="label"
+          optionValue="value"
+          formControlName="rol"
+          placeholder="Selecciona un rol"
+          [disabled]="!isAdmin"
+          class="w-full"
+        ></p-select>
+        <small class="hint">Solo ADMIN puede cambiar el rol</small>
+        <small class="error-text" *ngIf="showErr('rol')">
+          <ng-container *ngIf="f['rol'].errors?.['required']">El rol es obligatorio.</ng-container>
+          <ng-container *ngIf="f['rol'].errors?.['roleNotAllowed']">Rol no permitido.</ng-container>
+        </small>
+      </div>
+
+      <div class="field">
+        <label>Nombres</label>
+        <input pInputText formControlName="nombres" class="w-full readonly" readonly />
+        <small class="hint">Solo lectura</small>
+      </div>
+
+      <div class="field">
+        <label>Apellidos</label>
+        <input pInputText formControlName="apellidos" class="w-full readonly" readonly />
+        <small class="hint">Solo lectura</small>
+      </div>
+
+      <div class="field">
+        <label>Teléfono</label>
+        <input pInputText formControlName="telefono" class="w-full readonly" readonly />
+        <small class="hint">Solo lectura</small>
+        <small class="error-text" *ngIf="showErr('telefono')">
+          Teléfono inválido (solo números, +, espacios o guiones; 7–20 caracteres).
+        </small>
+      </div>
+
+      <div class="field">
+        <label>Foto perfil (S3)</label>
+        <input pInputText formControlName="foto_perfil_s3" class="w-full readonly" readonly />
+        <small class="hint">No editable</small>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top: .75rem;">
+      <div class="field" style="flex-direction:row; align-items:center; gap:.5rem;">
+        <p-checkbox formControlName="is_active" [binary]="true" inputId="is_active" [disabled]="!isAdmin"></p-checkbox>
+        <label for="is_active">Activo *</label>
+      </div>
+
+      <div class="field" style="flex-direction:row; align-items:center; gap:.5rem;">
+        <p-checkbox formControlName="is_staff" [binary]="true" inputId="is_staff" [disabled]="!isAdmin"></p-checkbox>
+        <label for="is_staff">is_staff</label>
+      </div>
+    </div>
+
+    <!-- PERFIL SOLO LECTURA -->
+    <div *ngIf="selectedUser" style="margin-top: 1rem;">
+      <div style="font-weight:700; margin-bottom:.65rem;">
+        Perfil (solo lectura) – {{ selectedUser.rol }}
+      </div>
+
+      <div *ngIf="selectedUser.rol === 'TUTOR'">
+        <div class="field">
+          <label>NIT</label>
+          <input pInputText [value]="selectedUser.perfilTutor?.nit || ''" class="w-full readonly" disabled />
+        </div>
+      </div>
+
+      <div *ngIf="selectedUser.rol === 'ADOPTANTE'">
+        <div class="form-grid">
+          <div class="field">
+            <label>CI</label>
+            <input pInputText [value]="selectedUser.perfilAdoptante?.ci || ''" class="w-full readonly" disabled />
+          </div>
+
+          <div class="field" style="justify-content:flex-end;">
+            <div class="muted" style="display:flex; align-items:center; gap:.5rem; margin-top: 1.6rem;">
+              <i class="pi pi-home"></i>
+              <span>
+                Tiene patio:
+                <strong>{{ selectedUser.perfilAdoptante?.tiene_patio ? 'Sí' : 'No' }}</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:.75rem;">
+          <label>Recibo de luz (S3)</label>
+          <input pInputText [value]="selectedUser.perfilAdoptante?.foto_recibo_luz_s3 || ''" class="w-full readonly" disabled />
+        </div>
+
+        <div class="field">
+          <label>CI (foto) S3</label>
+          <input pInputText [value]="selectedUser.perfilAdoptante?.foto_ci_s3 || ''" class="w-full readonly" disabled />
+        </div>
+
+        <div class="field">
+          <label>Garante (foto) S3</label>
+          <input pInputText [value]="selectedUser.perfilAdoptante?.foto_garante_s3 || ''" class="w-full readonly" disabled />
+        </div>
+
+        <div class="field">
+          <label>Fachada S3</label>
+          <input pInputText [value]="selectedUser.perfilAdoptante?.foto_fachada_s3 || ''" class="w-full readonly" disabled />
+        </div>
+
+        <div class="field">
+          <label>Domicilio S3</label>
+          <input pInputText [value]="selectedUser.perfilAdoptante?.foto_domicilio_s3 || ''" class="w-full readonly" disabled />
+        </div>
+
+        <div class="field">
+          <label>Croquis S3</label>
+          <input pInputText [value]="selectedUser.perfilAdoptante?.foto_croquis_s3 || ''" class="w-full readonly" disabled />
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button
+        pButton
+        label="Cancelar"
+        icon="pi pi-times"
+        class="p-button-text"
+        type="button"
+        (click)="closeDialog()"
+        [disabled]="loading"
+      ></button>
+
+      <button
+        pButton
+        label="Guardar"
+        icon="pi pi-check"
+        type="button"
+        (click)="save()"
+        [disabled]="loading || !isAdmin"
+      ></button>
+    </div>
+  </form>
+</p-dialog>
+
+<!-- DELETE CONFIRM -->
+<p-dialog
+  [(visible)]="confirmVisible"
+  [modal]="true"
+  [closable]="false"
+  [draggable]="false"
+  [style]="{ width: '380px', maxWidth: '92vw' }"
+  [baseZIndex]="11000"
+  [dismissableMask]="false"
+  header="Confirmar eliminación"
+>
+  <div style="text-align:center; display:flex; flex-direction:column; gap:.85rem;">
+    <i class="pi pi-exclamation-triangle" style="font-size:2.2rem;"></i>
+
+    <ng-container *ngIf="usuarioToDelete as u">
+      <p style="margin:0;">
+        ¿Seguro que desea eliminar el usuario<br />
+        <strong>"{{ u.email }}"</strong>?
+      </p>
+      <small class="muted">Rol: {{ u.rol }}</small>
+    </ng-container>
+  </div>
+
+  <div class="actions" style="margin-top: 1.1rem;">
+    <button
+      pButton
+      label="Cancelar"
+      icon="pi pi-times"
+      class="p-button-text"
+      type="button"
+      (click)="cancelDelete()"
+      [disabled]="loading"
+    ></button>
+
+    <button
+      pButton
+      label="Eliminar"
+      icon="pi pi-trash"
+      severity="danger"
+      type="button"
+      (click)="confirmDelete()"
+      [disabled]="loading"
+    ></button>
+  </div>
+</p-dialog>

@@ -1,0 +1,208 @@
+<p-toast></p-toast>
+
+<!-- TODO el bloque exportable -->
+<div #pdfArea>
+  <!-- Header -->
+  <div class="card mb-4">
+    <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center gap-3">
+      <div>
+        <div class="text-4xl font-semibold">Reportes (ADMIN)</div>
+        <div class="text-color-secondary mt-1">Gráficos estadísticos + exportación a PDF</div>
+      </div>
+
+      <div class="flex gap-2">
+        <button
+          pButton
+          type="button"
+          icon="pi pi-refresh"
+          label="Actualizar"
+          class="p-button-outlined"
+          (click)="refresh()"
+          [disabled]="loading"
+        ></button>
+
+        <button
+          pButton
+          type="button"
+          icon="pi pi-file-pdf"
+          label="Exportar PDF"
+          class="p-button-danger"
+          (click)="exportPdf()"
+          [disabled]="loading"
+        ></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRID estilo Sakai -->
+  <div class="grid grid-cols-12 gap-8">
+    <!-- KPI Cards (arriba) -->
+    <div class="col-span-12 md:col-span-6 xl:col-span-3">
+      <div class="card mb-0">
+        <div class="flex justify-content-between mb-3">
+          <div>
+            <div class="text-color-secondary font-medium mb-1">Mascotas disponibles (Top)</div>
+            <div class="text-3xl font-semibold">{{ kpiTopRazas }}</div>
+          </div>
+          <div class="flex align-items-center justify-content-center border-round" style="width:2.5rem;height:2.5rem">
+            <i class="pi pi-heart text-xl"></i>
+          </div>
+        </div>
+        <span class="text-color-secondary">Top razas / disponibles</span>
+      </div>
+    </div>
+
+    <div class="col-span-12 md:col-span-6 xl:col-span-3">
+      <div class="card mb-0">
+        <div class="flex justify-content-between mb-3">
+          <div>
+            <div class="text-color-secondary font-medium mb-1">Solicitudes (total)</div>
+            <div class="text-3xl font-semibold">{{ kpiSolicitudesTotal }}</div>
+          </div>
+          <div class="flex align-items-center justify-content-center border-round" style="width:2.5rem;height:2.5rem">
+            <i class="pi pi-inbox text-xl"></i>
+          </div>
+        </div>
+        <span class="text-color-secondary">Aprob/Rech/Pend</span>
+      </div>
+    </div>
+
+    <div class="col-span-12 md:col-span-6 xl:col-span-3">
+      <div class="card mb-0">
+        <div class="flex justify-content-between mb-3">
+          <div>
+            <div class="text-color-secondary font-medium mb-1">Tasa de aprobación</div>
+            <div class="text-3xl font-semibold">{{ kpiAprobacionProm }}%</div>
+          </div>
+          <div class="flex align-items-center justify-content-center border-round" style="width:2.5rem;height:2.5rem">
+            <i class="pi pi-chart-bar text-xl"></i>
+          </div>
+        </div>
+        <span class="text-color-secondary">Sobre total solicitudes</span>
+      </div>
+    </div>
+
+    <div class="col-span-12 md:col-span-6 xl:col-span-3">
+      <div class="card mb-0">
+        <div class="flex justify-content-between mb-3">
+          <div>
+            <div class="text-color-secondary font-medium mb-1">Seguimientos</div>
+            <div class="text-3xl font-semibold">{{ kpiSeguimiento }}</div>
+          </div>
+          <div class="flex align-items-center justify-content-center border-round" style="width:2.5rem;height:2.5rem">
+            <i class="pi pi-check-circle text-xl"></i>
+          </div>
+        </div>
+        <span class="text-color-secondary">Al día / total (con frecuencia)</span>
+      </div>
+    </div>
+
+    <!-- Col izquierda -->
+    <div class="col-span-12 xl:col-span-6">
+      <!-- Top razas (lista + barra como best selling) -->
+      <div class="card">
+        <div class="flex justify-content-between align-items-center mb-3">
+          <div class="text-xl font-semibold">Mascotas disponibles (Top razas)</div>
+          <i class="pi pi-ellipsis-v text-color-secondary"></i>
+        </div>
+
+        <ng-container *ngIf="topRazas.length; else noTop">
+          <div *ngFor="let r of topRazas" class="mb-4">
+            <div class="flex justify-content-between align-items-center">
+              <div>
+                <div class="font-medium">{{ r.raza__nombre || 'Sin raza' }}</div>
+                <div class="text-color-secondary text-sm">{{ r.especie__nombre }}</div>
+              </div>
+              <div class="font-medium">{{ percentTop(r) }}%</div>
+            </div>
+
+            <p-progressBar [value]="percentTop(r)" [showValue]="true" styleClass="mt-2"></p-progressBar>
+          </div>
+        </ng-container>
+
+        <ng-template #noTop>
+          <div class="text-color-secondary">Sin datos.</div>
+        </ng-template>
+      </div>
+
+      <!-- Cumplimiento -->
+      <div class="card">
+        <div class="flex justify-content-between align-items-center mb-3">
+          <div class="text-xl font-semibold">Cumplimiento (seguimientos)</div>
+          <i class="pi pi-ellipsis-v text-color-secondary"></i>
+        </div>
+
+        <div style="height: 320px;">
+          <p-chart type="bar" [data]="chartCumplimiento" [options]="chartOptionsBar"></p-chart>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col derecha -->
+    <div class="col-span-12 xl:col-span-6">
+      <!-- Top razas barras -->
+      <div class="card">
+        <div class="flex justify-content-between align-items-center mb-3">
+          <div class="text-xl font-semibold">Top razas (barras)</div>
+          <i class="pi pi-ellipsis-v text-color-secondary"></i>
+        </div>
+
+        <div style="height: 320px;">
+          <p-chart type="bar" [data]="chartTopRazas" [options]="chartOptionsBar"></p-chart>
+        </div>
+      </div>
+
+      <!-- Solicitudes stacked -->
+      <div class="card">
+        <div class="flex justify-content-between align-items-center mb-3">
+          <div class="text-xl font-semibold">Solicitudes por tutor (stacked)</div>
+          <i class="pi pi-ellipsis-v text-color-secondary"></i>
+        </div>
+
+        <div style="height: 340px;">
+          <p-chart type="bar" [data]="chartSolicitudesTutor" [options]="chartOptionsStacked"></p-chart>
+        </div>
+      </div>
+
+      <!-- Tabla atrasados -->
+      <div class="card">
+        <div class="flex justify-content-between align-items-center mb-3">
+          <div class="text-xl font-semibold">Seguimientos atrasados (detalle)</div>
+          <i class="pi pi-ellipsis-v text-color-secondary"></i>
+        </div>
+
+        <p-table
+          [value]="onlyAtrasadosDetalle()"
+          [paginator]="true"
+          [rows]="5"
+          dataKey="solicitud_id"
+          responsiveLayout="scroll"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th>Solicitud</th>
+              <th>Mascota</th>
+              <th>Adoptante</th>
+              <th>Frecuencia</th>
+              <th>Último envío</th>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="body" let-d>
+            <tr>
+              <td>{{ d.solicitud_id }}</td>
+              <td>{{ d.mascota }}</td>
+              <td>{{ d.adoptante }}</td>
+              <td>{{ d.frecuencia || '-' }}</td>
+              <td>{{ d.ultimo_envio || '-' }}</td>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="emptymessage">
+            <tr><td colspan="5">No hay atrasados.</td></tr>
+          </ng-template>
+        </p-table>
+      </div>
+    </div>
+  </div>
+</div>

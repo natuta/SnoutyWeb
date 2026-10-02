@@ -1,0 +1,171 @@
+<div class="mascotas-container">
+
+  <!-- ================= FILTROS ================= -->
+  <div class="search-card">
+    <h2 class="title">Encuentra a tu nuevo compañero 🐾</h2>
+    <div class="subtitle">Filtra por nombre, especie, raza o sexo</div>
+
+    <div class="filters">
+
+      <div class="filter-item">
+        <label class="field-label"><i class="pi pi-tag"></i> Nombre</label>
+        <p-autoComplete
+          [(ngModel)]="nombreTexto"
+          [suggestions]="nombresSugeridos"
+          (completeMethod)="buscarNombres($event)"
+          (ngModelChange)="aplicarFiltros()"
+          placeholder="Ej: Luna, Max..."
+        ></p-autoComplete>
+      </div>
+
+      <div class="filter-item">
+        <label class="field-label"><i class="pi pi-github"></i> Especie</label>
+        <p-autoComplete
+          [(ngModel)]="especieTexto"
+          [suggestions]="especiesSugeridas"
+          (completeMethod)="buscarEspecies($event)"
+          (ngModelChange)="aplicarFiltros()"
+          placeholder="Perro, Gato..."
+        ></p-autoComplete>
+      </div>
+
+      <div class="filter-item">
+        <label class="field-label"><i class="pi pi-sitemap"></i> Raza</label>
+        <p-autoComplete
+          [(ngModel)]="razaTexto"
+          [suggestions]="razasSugeridas"
+          (completeMethod)="buscarRazas($event)"
+          (ngModelChange)="aplicarFiltros()"
+          placeholder="Labrador, Siamés..."
+        ></p-autoComplete>
+      </div>
+
+      <div class="filter-item">
+        <label class="field-label"><i class="pi pi-heart"></i> Sexo</label>
+        <div class="sexo-chips">
+          <div class="chip" [class.active]="sexoSeleccionado===''" (click)="sexoSeleccionado=''; aplicarFiltros()">Todos</div>
+          <div class="chip" [class.active]="sexoSeleccionado==='M'" (click)="sexoSeleccionado='M'; aplicarFiltros()">Macho</div>
+          <div class="chip" [class.active]="sexoSeleccionado==='F'" (click)="sexoSeleccionado='F'; aplicarFiltros()">Hembra</div>
+        </div>
+      </div>
+
+      <div class="filter-item">
+        <button
+          pButton
+          class="p-button-outlined"
+          icon="pi pi-times"
+          label="Limpiar"
+          (click)="limpiarFiltros()"
+        ></button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= LISTADO ================= -->
+  <div class="grid-card">
+
+    <div class="grid-header">
+      <div class="total">Total: <strong>{{ mascotasFiltradas.length || 0 }}</strong></div>
+      <div *ngIf="loading" class="total">Cargando...</div>
+    </div>
+
+    <div class="pets-grid" *ngIf="mascotasFiltradas.length; else emptyTpl">
+      <div class="pet-card"
+           *ngFor="let m of mascotasFiltradas; trackBy: trackByMascotaId"
+           (click)="onClickMascota(m)">
+
+        <div class="img-wrap">
+          <img *ngIf="!imgFailed(m.id)"
+               class="pet-img"
+               [src]="getFotoMascota(m)"
+               (error)="onImgError(m.id)"
+               alt="Foto mascota" />
+
+          <div class="placeholder" *ngIf="imgFailed(m.id)">
+            <i class="pi pi-image" style="font-size:2rem;"></i>
+            <span>Sin foto</span>
+          </div>
+
+          <div class="badge-row">
+            <span class="badge">{{ getSexoLabel(m) }}</span>
+            <span class="badge">{{ getEdadLabel(m) }}</span>
+            <span class="badge">{{ getEstadoLabel(m) }}</span>
+          </div>
+        </div>
+
+        <div class="pet-body">
+          <div>
+            <div class="pet-name">{{ m.nombre }}</div>
+            <div class="pet-sub">{{ m.especie_nombre || '—' }} · {{ m.raza_nombre || '—' }}</div>
+            <div class="pet-sub"><i class="pi pi-map-marker"></i> {{ m.ubicacion || '—' }}</div>
+          </div>
+
+          <button
+            pButton
+            type="button"
+            label="Ver detalles"
+            class="p-button-rounded p-button-sm"
+            (click)="$event.stopPropagation(); onClickMascota(m)"
+          ></button>
+        </div>
+
+      </div>
+    </div>
+
+    <ng-template #emptyTpl>
+      <div class="empty">
+        <i class="pi pi-search"></i><br />
+        No hay mascotas para mostrar con esos filtros.
+      </div>
+    </ng-template>
+
+  </div>
+
+</div>
+
+<!-- ================= MODAL DETALLE ================= -->
+<p-dialog
+  [(visible)]="mostrarModal"
+  [modal]="true"
+  [dismissableMask]="true"
+  [draggable]="false"
+  [style]="{ width: '900px', maxWidth: '96vw' }"
+  (onHide)="cerrarModal()"
+>
+  <ng-template pTemplate="header">
+    <div>
+      <div style="font-weight:900; font-size:1.15rem;">
+        {{ selectedMascota?.nombre || 'Detalle de mascota' }}
+      </div>
+      <div style="opacity:.75;">
+        {{ selectedMascota?.especie_nombre || '—' }} · {{ selectedMascota?.raza_nombre || '—' }}
+      </div>
+    </div>
+  </ng-template>
+
+  <div class="dlg-body" *ngIf="selectedMascota as m">
+    <img class="dlg-img" [src]="getFotoMascota(m)" (error)="onImgError(m.id)" alt="Foto mascota" />
+
+    <div>
+      <div class="info-grid">
+        <div class="info-item"><div class="k">Sexo</div><div class="v">{{ getSexoLabel(m) }}</div></div>
+        <div class="info-item"><div class="k">Edad</div><div class="v">{{ getEdadLabel(m) }}</div></div>
+        <div class="info-item"><div class="k">Estado</div><div class="v">{{ getEstadoLabel(m) }}</div></div>
+        <div class="info-item"><div class="k">Ubicación</div><div class="v">{{ m.ubicacion || '—' }}</div></div>
+      </div>
+
+      <div class="desc-box">
+        <div class="k">Descripción</div>
+        <div class="desc">{{ m.descripcion || 'Sin descripción registrada.' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <button pButton type="button" class="p-button-outlined" icon="pi pi-times" label="Cerrar" (click)="cerrarModal()"></button>
+    <button pButton type="button" icon="pi pi-send" label="Solicitar adopción"
+            (click)="selectedMascota && irASolicitudAdopcion(selectedMascota)">
+    </button>
+  </ng-template>
+</p-dialog>

@@ -1,0 +1,485 @@
+<!-- Toast global -->
+<p-toast position="top-right"></p-toast>
+
+<div class="page-container">
+
+  <!-- HEADER -->
+  <div class="flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="m-0">
+        {{
+          rolUsuario === 'ADMIN'
+            ? 'Solicitudes (solo lectura)'
+            : rolUsuario === 'TUTOR'
+              ? 'Solicitudes de mis mascotas'
+              : 'Mis solicitudes de adopción'
+        }}
+      </h2>
+
+      <small class="muted" *ngIf="rolUsuario === 'ADMIN'">
+        Como administrador solo puedes visualizar.
+      </small>
+    </div>
+
+    <!-- SOLO ADOPTANTE -->
+    <button
+      *ngIf="canCreate"
+      pButton
+      label="Nueva solicitud"
+      icon="pi pi-plus"
+      (click)="openNew()"
+    ></button>
+  </div>
+
+  <!-- TABLA -->
+  <p-table
+    [value]="solicitudes"
+    [paginator]="true"
+    [rows]="10"
+    dataKey="id"
+    class="shadow-2"
+  >
+
+    <!-- HEADER -->
+    <ng-template pTemplate="header">
+      <tr class="text-center">
+        <th>ID</th>
+        <th>Mascota</th>
+        <th>Correo adoptante</th>
+        <th>Correo tutor</th>
+        <th>Estado</th>
+        <th>Motivación</th>
+        <th *ngIf="rolUsuario !== 'ADMIN'">Acciones</th>
+      </tr>
+    </ng-template>
+
+    <!-- BODY -->
+    <ng-template pTemplate="body" let-row>
+      <tr class="text-center">
+
+        <td>{{ row.id }}</td>
+
+        <td>
+          {{ nombreMascota(row.mascota) }}
+        </td>
+
+        <td>
+          {{ row.adoptante_email || '-' }}
+        </td>
+
+        <td>
+          {{ row.tutor_email || '-' }}
+        </td>
+
+        <td>
+          {{ row.estado }}
+        </td>
+
+        <td>
+          {{ row.motivacion ? (row.motivacion | slice:0:40) : '-' }}
+          <span *ngIf="row.motivacion && row.motivacion.length > 40">...</span>
+        </td>
+
+        <!-- ACCIONES -->
+        <td *ngIf="rolUsuario !== 'ADMIN'">
+
+          <!-- TUTOR EDIT -->
+          <button
+            *ngIf="canEditRow(row)"
+            pButton
+            icon="pi pi-pencil"
+            rounded
+            text
+            severity="secondary"
+            (click)="edit(row)"
+          ></button>
+
+          <!-- ADOPTANTE DELETE -->
+          <button
+            *ngIf="canDeleteRow(row)"
+            pButton
+            icon="pi pi-trash"
+            rounded
+            text
+            severity="danger"
+            (click)="openDeleteConfirm(row)"
+          ></button>
+
+        </td>
+
+      </tr>
+    </ng-template>
+
+    <!-- EMPTY -->
+    <ng-template pTemplate="emptymessage">
+      <tr>
+        <td
+          class="text-center"
+          [attr.colspan]="rolUsuario !== 'ADMIN' ? 7 : 6"
+        >
+          No se encontraron solicitudes.
+        </td>
+      </tr>
+    </ng-template>
+
+  </p-table>
+</div>
+
+
+<!-- ====================================== -->
+<!-- DIALOG -->
+<!-- ====================================== -->
+
+<p-dialog
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [closable]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '52vw', maxWidth: '820px' }"
+  [breakpoints]="{ '960px': '95vw' }"
+  [contentStyle]="{ padding: '0' }"
+>
+
+  <div class="dialog-shell">
+
+    <!-- HEADER -->
+    <div class="dialog-hero">
+      <h3>
+        <i class="pi pi-heart-fill mr-2"></i>
+        {{ dialogTitle }}
+      </h3>
+
+      <small>
+        {{
+          rolUsuario === 'ADOPTANTE'
+            ? 'Completa los pasos para enviar tu solicitud.'
+            : rolUsuario === 'TUTOR'
+              ? 'Actualiza el estado de la solicitud.'
+              : 'Solo lectura.'
+        }}
+      </small>
+    </div>
+
+
+    <div class="dialog-body">
+
+      <!-- =========================== -->
+      <!-- ADOPTANTE -->
+      <!-- =========================== -->
+
+      <div *ngIf="rolUsuario === 'ADOPTANTE'">
+
+        <p-steps
+          [model]="stepsAdoptante"
+          [activeIndex]="activeStep"
+          [readonly]="true"
+        ></p-steps>
+
+        <form [formGroup]="form" class="p-fluid mt-3">
+
+          <!-- STEP 1 -->
+          <div *ngIf="activeStep === 0" class="form-grid">
+
+            <div class="field">
+
+              <label>Mascota *</label>
+
+              <p-autoComplete
+                [(ngModel)]="mascotaBuscada"
+                [ngModelOptions]="{ standalone: true }"
+                [suggestions]="mascotasSugerencias"
+                (completeMethod)="filtrarMascotas($event)"
+                optionLabel="nombre"
+                [dropdown]="true"
+                [minLength]="1"
+                placeholder="Buscar mascota"
+                (onSelect)="onSelectMascota($event)"
+                [disabled]="mascotaDisabled"
+                class="w-full"
+              ></p-autoComplete>
+
+              <div class="error" *ngIf="showError('mascota')">
+                {{ errorMsg('mascota') }}
+              </div>
+
+            </div>
+
+            <div class="field">
+
+              <label>Tu correo</label>
+
+              <input
+                pInputText
+                [value]="correoDisplay"
+                disabled
+                class="w-full"
+              />
+
+              <small class="hint">
+                Este dato se toma de tu sesión
+              </small>
+
+            </div>
+
+          </div>
+
+
+          <!-- STEP 2 -->
+          <div *ngIf="activeStep === 1">
+
+            <div class="field">
+
+              <label>Motivación *</label>
+
+              <textarea
+                pInputText
+                rows="4"
+                formControlName="motivacion"
+                [disabled]="motivacionDisabled"
+                class="w-full"
+              ></textarea>
+
+              <small class="hint">
+                Mínimo 20 caracteres
+              </small>
+
+              <div class="error" *ngIf="showError('motivacion')">
+                {{ errorMsg('motivacion') }}
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- STEP 3 -->
+          <div *ngIf="activeStep === 2" class="summary-card">
+
+            <div class="summary-row">
+              <b>Mascota:</b>
+              {{ mascotaResumen }}
+            </div>
+
+            <div class="summary-row">
+              <b>Correo:</b>
+              {{ correoDisplay }}
+            </div>
+
+            <div class="summary-row">
+              <b>Estado:</b>
+              PENDIENTE
+            </div>
+
+            <div class="summary-row">
+              <b>Motivación:</b>
+              {{ form.get('motivacion')?.value }}
+            </div>
+
+          </div>
+
+
+          <!-- BOTONES -->
+          <div class="actions">
+
+            <button
+              pButton
+              label="Cerrar"
+              class="p-button-text"
+              (click)="closeDialog()"
+              type="button"
+            ></button>
+
+            <div class="actions-right">
+
+              <button
+                *ngIf="activeStep > 0"
+                pButton
+                label="Atrás"
+                icon="pi pi-arrow-left"
+                (click)="prevStep()"
+                type="button"
+              ></button>
+
+              <button
+                *ngIf="activeStep < 2"
+                pButton
+                label="Siguiente"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                (click)="nextStep()"
+                type="button"
+              ></button>
+
+              <button
+                *ngIf="activeStep === 2"
+                pButton
+                label="Enviar solicitud"
+                icon="pi pi-check"
+                [disabled]="saving"
+                (click)="save()"
+                type="button"
+              ></button>
+
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+
+      <!-- =========================== -->
+      <!-- TUTOR -->
+      <!-- =========================== -->
+
+      <div *ngIf="rolUsuario === 'TUTOR'">
+
+        <form [formGroup]="form" class="p-fluid mt-3">
+
+          <div class="form-grid">
+
+            <div class="field">
+              <label>Mascota</label>
+              <input pInputText [value]="mascotaResumen" disabled />
+            </div>
+
+            <div class="field">
+              <label>Correo adoptante</label>
+              <input pInputText [value]="correoDisplay" disabled />
+            </div>
+
+            <div class="field">
+
+              <label>Estado *</label>
+
+              <p-select
+                [options]="estadoOptions"
+                optionLabel="label"
+                optionValue="value"
+                formControlName="estado"
+                [disabled]="estadoDisabled"
+                appendTo="body"
+                placeholder="Seleccione estado"
+              ></p-select>
+
+              <div class="error" *ngIf="showError('estado')">
+                {{ errorMsg('estado') }}
+              </div>
+
+            </div>
+
+            <div class="field">
+
+              <label>Motivación</label>
+
+              <textarea
+                pInputText
+                rows="3"
+                [value]="motivacionPreview"
+                disabled
+              ></textarea>
+
+            </div>
+
+          </div>
+
+
+          <div class="actions">
+
+            <button
+              pButton
+              label="Cerrar"
+              class="p-button-text"
+              (click)="closeDialog()"
+              type="button"
+            ></button>
+
+            <button
+              pButton
+              label="Guardar cambios"
+              icon="pi pi-check"
+              [disabled]="saving"
+              (click)="save()"
+              type="button"
+            ></button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+
+      <!-- =========================== -->
+      <!-- ADMIN -->
+      <!-- =========================== -->
+
+      <div *ngIf="rolUsuario === 'ADMIN'" class="text-center">
+
+        <p>
+          Como administrador solo puedes visualizar.
+        </p>
+
+        <button
+          pButton
+          label="Cerrar"
+          class="p-button-text"
+          (click)="closeDialog()"
+        ></button>
+
+      </div>
+
+    </div>
+  </div>
+</p-dialog>
+
+
+
+<!-- ====================================== -->
+<!-- CONFIRM DELETE -->
+<!-- ====================================== -->
+
+<p-dialog
+  [(visible)]="confirmVisible"
+  [modal]="true"
+  [closable]="false"
+  [draggable]="false"
+  [resizable]="false"
+  header="Confirmar eliminación"
+  [style]="{ width: '360px' }"
+>
+
+  <div class="text-center">
+
+    <i class="pi pi-exclamation-triangle text-3xl"></i>
+
+    <p class="mt-2">
+      ¿Eliminar la solicitud
+      <strong>#{{ solicitudToDelete?.id }}</strong>?
+    </p>
+
+    <small class="muted">
+      Solo si está en estado PENDIENTE.
+    </small>
+
+  </div>
+
+  <div class="flex justify-content-end gap-2 mt-3">
+
+    <button
+      pButton
+      label="Cancelar"
+      class="p-button-text"
+      (click)="cancelDelete()"
+    ></button>
+
+    <button
+      pButton
+      label="Eliminar"
+      severity="danger"
+      (click)="confirmDelete()"
+    ></button>
+
+  </div>
+
+</p-dialog>
