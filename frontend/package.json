@@ -23,7 +23,7 @@
         "@tailwindcss/postcss": "^4.1.11",
         "chart.js": "4.4.2",
         "html2canvas": "^1.4.1",
-        "jspdf": "^4.1.0",
+        "jspdf": "^4.2.1",
         "primeclt": "^0.1.5",
         "primeicons": "^7.0.0",
         "primeng": "^20",
