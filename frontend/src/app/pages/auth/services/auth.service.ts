@@ -33,7 +33,7 @@ type LoginResponse = {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private apiUrl = 'http://127.0.0.1:8000';
+  private apiUrl = 'https://snoutyweb.onrender.com';
 
   private readonly ACCESS_KEY = 'snouty_access_token';
   private readonly REFRESH_KEY = 'snouty_refresh_token';

@@ -79,10 +79,10 @@ export class SnoutyMascotasPage implements OnInit {
   ];
   activeStepIndex = 0;
 
-  private baseMascotas = 'http://127.0.0.1:8000/api/mascotas/';
-  private baseEspecies = 'http://127.0.0.1:8000/api/especies/';
-  private baseRazas = 'http://127.0.0.1:8000/api/razas/';
-  private basePerfilesTutor = 'http://127.0.0.1:8000/api/perfiles-tutor/';
+private baseMascotas = 'https://snoutyweb.onrender.com/api/mascotas/';
+private baseEspecies = 'https://snoutyweb.onrender.com/api/especies/';
+private baseRazas = 'https://snoutyweb.onrender.com/api/razas/';
+private basePerfilesTutor = 'https://snoutyweb.onrender.com/api/perfiles-tutor/';
 
   sexoOptions: { label: string; value: SexoMascota }[] = [
     { label: 'Macho', value: 'M' as SexoMascota },

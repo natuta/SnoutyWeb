@@ -226,8 +226,8 @@ export class SnoutyVacunasPage implements OnInit {
 
   globalFilter = '';
 
-  private baseVacunas = 'http://127.0.0.1:8000/api/vacunas/';
-  private baseCartillas = 'http://127.0.0.1:8000/api/cartillas-medicas/';
+private baseVacunas = 'https://snoutyweb.onrender.com/api/vacunas/';
+private baseCartillas = 'https://snoutyweb.onrender.com/api/cartillas-medicas/';
 
   constructor(
     private http: HttpClient,
@@ -261,7 +261,7 @@ export class SnoutyVacunasPage implements OnInit {
   }
 
   private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('access');
+  const token = localStorage.getItem('snouty_access_token');
     return new HttpHeaders({
       Authorization: `Bearer ${token}`
     });

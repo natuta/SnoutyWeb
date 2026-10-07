@@ -100,7 +100,7 @@ export class SeguimientoPage implements OnInit {
   loading = false;
 
   // ✅ si NO usas proxy, deja absoluto
-  private API = 'http://127.0.0.1:8000/api';
+private API = 'https://snoutyweb.onrender.com/api';
 
   get isAdmin() { return this.role === 'ADMIN'; }
   get isTutor() { return this.role === 'TUTOR'; }

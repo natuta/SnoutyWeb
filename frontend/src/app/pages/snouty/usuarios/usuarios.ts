@@ -228,10 +228,10 @@ export class SnoutyUsuariosPage implements OnInit {
     { label: 'ADOPTANTE', value: 'ADOPTANTE' },
   ];
 
-  private API = 'http://127.0.0.1:8000/api';
-  private usuariosUrl = `${this.API}/usuarios/`;
-  private tutoresUrl = `${this.API}/perfiles-tutor/`;
-  private adoptantesUrl = `${this.API}/perfiles-adoptante/`;
+private API = 'https://snoutyweb.onrender.com/api';
+private usuariosUrl = `${this.API}/usuarios/`;
+private tutoresUrl = `${this.API}/perfiles-tutor/`;
+private adoptantesUrl = `${this.API}/perfiles-adoptante/`;
 
   constructor(
     private http: HttpClient,

@@ -24,7 +24,7 @@ import { MessageService } from 'primeng/api';
 import { Especie } from '../snouty.models';
 import { AuthService } from '../../auth/services/auth.service';
 
-const API_URL = 'http://127.0.0.1:8000/api/especies/';
+const API_URL = 'https://snoutyweb.onrender.com/api/especies/';
 
 @Component({
   selector: 'app-snouty-especies',

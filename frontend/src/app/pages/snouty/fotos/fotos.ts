@@ -323,9 +323,9 @@ export class SnoutyFotosMascotaPage implements OnInit {
 
   bgStyle = `url("assets/layout/images/snouty-bg.jpg")`;
 
-  private baseFotos = 'http://127.0.0.1:8000/api/fotos-mascota/';
-  private baseMascotas = 'http://127.0.0.1:8000/api/mascotas/';
-  private baseUpload = 'http://127.0.0.1:8000/api/fotos-mascota/upload/';
+private baseFotos = 'https://snoutyweb.onrender.com/api/fotos-mascota/';
+private baseMascotas = 'https://snoutyweb.onrender.com/api/mascotas/';
+private baseUpload = 'https://snoutyweb.onrender.com/api/fotos-mascota/upload/';
 
   user: AuthUser | null = null;
 

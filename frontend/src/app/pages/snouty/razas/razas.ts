@@ -260,8 +260,8 @@ export class SnoutyRazasPage implements OnInit {
   saving = false;
   deleting = false;
 
-  private baseRazas = 'http://127.0.0.1:8000/api/razas/';
-  private baseEspecies = 'http://127.0.0.1:8000/api/especies/';
+private baseRazas = 'https://snoutyweb.onrender.com/api/razas/';
+private baseEspecies = 'https://snoutyweb.onrender.com/api/especies/';
 
   constructor(
     private http: HttpClient,

@@ -21,7 +21,7 @@ import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { StepsModule } from 'primeng/steps';
 
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = 'https://snoutyweb.onrender.com/api';
 type RolRegistro = 'TUTOR' | 'ADOPTANTE' | '';
 type Sexo = '' | 'M' | 'F';
 

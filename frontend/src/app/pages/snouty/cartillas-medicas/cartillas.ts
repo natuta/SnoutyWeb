@@ -182,8 +182,8 @@ export class SnoutyCartillasPage implements OnInit {
     { label: 'Mucosas y notas' },
   ];
 
-  private baseCartillas = 'http://127.0.0.1:8000/api/cartillas-medicas/';
-  private baseMascotas = 'http://127.0.0.1:8000/api/mascotas/';
+private baseCartillas = 'https://snoutyweb.onrender.com/api/cartillas-medicas/';
+private baseMascotas = 'https://snoutyweb.onrender.com/api/mascotas/';
 
   actitudOptions: Option<ActitudClinica>[] = [
     { label: 'Asténico', value: 'ASTENICO' as ActitudClinica },

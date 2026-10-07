@@ -43,7 +43,7 @@ export interface MascotaCard extends MascotaApi {
 
 @Injectable({ providedIn: 'root' })
 export class MascotaService {
-  private baseBuscador = 'http://127.0.0.1:8000/api/buscador/';
+private baseBuscador = 'https://snoutyweb.onrender.com/api/buscador/';
 
   constructor(private http: HttpClient) {}
 

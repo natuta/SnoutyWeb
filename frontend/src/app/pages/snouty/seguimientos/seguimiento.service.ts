@@ -11,7 +11,7 @@ import {
   CreateEvidenciaJsonPayload,
 } from './seguimiento.models';
 
-const API = 'http://127.0.0.1:8000/api';
+const API = 'https://snoutyweb.onrender.com/api';
 
 @Injectable({ providedIn: 'root' })
 export class SeguimientoService {

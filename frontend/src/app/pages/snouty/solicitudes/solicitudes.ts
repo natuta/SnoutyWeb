@@ -123,9 +123,9 @@ export class SnoutySolicitudesAdopcionPage implements OnInit, OnDestroy {
   form: FormGroup;
 
   // endpoints
-  private API = 'http://127.0.0.1:8000/api';
-  private baseSolicitudes = `${this.API}/solicitudes-adopcion/`;
-  private baseMascotas = `${this.API}/mascotas/`;
+private API = 'https://snoutyweb.onrender.com/api';
+private baseSolicitudes = `${this.API}/solicitudes-adopcion/`;
+private baseMascotas = `${this.API}/mascotas/`;
 
   private subs = new Subscription();
 

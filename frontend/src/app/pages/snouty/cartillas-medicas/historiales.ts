@@ -172,7 +172,7 @@ export class SnoutyHistorialesPage implements OnInit {
     historialToDelete: HistorialMedico | null = null;
     deleteError = '';
 
-    private baseUrl = 'http://127.0.0.1:8000/api/historiales-medicos/';
+private baseUrl = 'https://snoutyweb.onrender.com/api/historiales-medicos/';
 
     constructor(private http: HttpClient, private fb: FormBuilder) {
         this.form = this.fb.group({
