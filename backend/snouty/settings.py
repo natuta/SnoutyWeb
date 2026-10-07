@@ -283,6 +283,7 @@ if (
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
+    "https://snouty-frontend.onrender.com/",
 ]
 
 # Cuando Angular esté publicado,
@@ -309,6 +310,7 @@ CORS_ALLOW_HEADERS = (
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:4200",
     "https://snoutyweb.onrender.com",
+    "https://snouty-frontend.onrender.com",
 ]
 
 # Cuando Angular esté publicado,
