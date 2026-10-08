@@ -1,7 +1,7 @@
 
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 import {
   AbstractControl,
@@ -95,8 +95,11 @@ export class SnoutyMascotasPage implements OnInit {
   // ==========================================================
 
   mascotas: Mascota[] = [];
+
   especies: Especie[] = [];
+
   razas: Raza[] = [];
+
   razasFiltradasPorEspecie: Raza[] = [];
 
   // ==========================================================
@@ -104,7 +107,9 @@ export class SnoutyMascotasPage implements OnInit {
   // ==========================================================
 
   tutores: TutorOption[] = [];
+
   tutoresFiltrados: TutorOption[] = [];
+
   tutorSeleccionado: TutorOption | null = null;
 
   // ==========================================================
@@ -123,7 +128,9 @@ export class SnoutyMascotasPage implements OnInit {
   // ==========================================================
 
   confirmVisible = false;
+
   mascotaToDelete: Mascota | null = null;
+
   deleteError = '';
 
   // ==========================================================
@@ -169,8 +176,14 @@ export class SnoutyMascotasPage implements OnInit {
     label: string;
     value: SexoMascota;
   }[] = [
-    { label: 'Macho', value: 'M' as SexoMascota },
-    { label: 'Hembra', value: 'F' as SexoMascota }
+    {
+      label: 'Macho',
+      value: 'M' as SexoMascota
+    },
+    {
+      label: 'Hembra',
+      value: 'F' as SexoMascota
+    }
   ];
 
   estadoOptions: {
@@ -210,6 +223,7 @@ export class SnoutyMascotasPage implements OnInit {
   // ==========================================================
 
   currentUser: AuthUser | null = null;
+
   rolUsuario: UserRole = null;
 
   get isAdminUser(): boolean {
@@ -333,6 +347,25 @@ export class SnoutyMascotasPage implements OnInit {
         }
       }
     );
+
+    // Quitar error de duplicado cuando cambia el nombre
+    this.form.get('nombre')?.valueChanges.subscribe(() => {
+      const control = this.form.get('nombre');
+
+      if (!control?.hasError('duplicado')) {
+        return;
+      }
+
+      const errores = {
+        ...(control.errors || {})
+      };
+
+      delete errores['duplicado'];
+
+      control.setErrors(
+        Object.keys(errores).length ? errores : null
+      );
+    });
   }
 
   // ==========================================================
@@ -348,7 +381,9 @@ export class SnoutyMascotasPage implements OnInit {
       this.currentUser?.rol || null;
 
     this.loadEspecies();
+
     this.loadRazas();
+
     this.loadMascotas();
 
     if (this.isAdminUser) {
@@ -368,14 +403,9 @@ export class SnoutyMascotasPage implements OnInit {
 
         this.mascotas = data || [];
 
-        console.log(
-          'Mascotas cargadas:',
-          this.mascotas
-        );
-
       },
 
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
 
         console.error(
           'Error cargando mascotas:',
@@ -402,7 +432,7 @@ export class SnoutyMascotasPage implements OnInit {
         this.especies = data || [];
       },
 
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         console.error('Error cargando especies:', err);
       }
     });
@@ -430,7 +460,7 @@ export class SnoutyMascotasPage implements OnInit {
         this.filtrarRazasPorEspecie(especieId);
       },
 
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         console.error('Error cargando razas:', err);
       }
     });
@@ -471,10 +501,11 @@ export class SnoutyMascotasPage implements OnInit {
         );
 
         this.tutores = lista;
+
         this.tutoresFiltrados = [...lista];
       },
 
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
         console.error('Error cargando tutores:', err);
       }
     });
@@ -700,13 +731,14 @@ export class SnoutyMascotasPage implements OnInit {
       return;
     }
 
-    // Nueva mascota: todavía no existe ID
     this.editingId = null;
 
     this.activeStepIndex = 0;
+
     this.saving = false;
 
     this.tutorSeleccionado = null;
+
     this.tutoresFiltrados = [...this.tutores];
 
     this.form.reset({
@@ -738,7 +770,7 @@ export class SnoutyMascotasPage implements OnInit {
       return;
     }
 
-    // Validar identificador
+    // Verificar que la mascota tenga un ID válido
     if (
       row.id == null ||
       !Number.isInteger(Number(row.id)) ||
@@ -751,16 +783,19 @@ export class SnoutyMascotasPage implements OnInit {
       return;
     }
 
-    // Guardar ID real
+    // Conservar ID para mostrar y actualizar
     this.editingId = Number(row.id);
 
     this.activeStepIndex = 0;
+
     this.saving = false;
 
     const mascota: any = row;
 
     let edad_valor: number | null = null;
-    let edad_unidad: EdadUnidad = 'MESES' as EdadUnidad;
+
+    let edad_unidad: EdadUnidad =
+      'MESES' as EdadUnidad;
 
     if (row.edad_meses != null) {
 
@@ -775,6 +810,7 @@ export class SnoutyMascotasPage implements OnInit {
       } else {
 
         edad_unidad = 'MESES' as EdadUnidad;
+
         edad_valor = row.edad_meses;
       }
     }
@@ -824,6 +860,100 @@ export class SnoutyMascotasPage implements OnInit {
   }
 
   // ==========================================================
+  // COMPARAR NOMBRES DE MASCOTAS
+  // ==========================================================
+
+  private normalizarNombre(nombre: string): string {
+    return String(nombre ?? '')
+      .trim()
+      .toLocaleLowerCase();
+  }
+
+  // ==========================================================
+  // VERIFICAR DUPLICADOS EN MASCOTAS CARGADAS
+  // ==========================================================
+
+  private existeNombreDuplicado(nombre: string): boolean {
+
+    const nombreNormalizado =
+      this.normalizarNombre(nombre);
+
+    return this.mascotas.some((mascota) => {
+
+      const otroRegistro =
+        Number(mascota.id) !== this.editingId;
+
+      const mismoNombre =
+        this.normalizarNombre(mascota.nombre) ===
+        nombreNormalizado;
+
+      return otroRegistro && mismoNombre;
+    });
+  }
+
+  // ==========================================================
+  // MOSTRAR ERROR DE NOMBRE DUPLICADO
+  // ==========================================================
+
+  private mostrarNombreDuplicado(nombre: string): void {
+
+    this.form.get('nombre')?.setErrors({
+      duplicado: true
+    });
+
+    this.toastWarn(
+      `Ya existe una mascota registrada con el nombre "${nombre}". Ingrese otro nombre.`
+    );
+  }
+
+  // ==========================================================
+  // MOSTRAR ERRORES DEL BACKEND
+  // ==========================================================
+
+  private mostrarErrorGuardado(
+    err: HttpErrorResponse,
+    mensajeGenerico: string
+  ): void {
+
+    // Django REST Framework devuelve:
+    // { nombre: ["Ya existe una mascota..."] }
+
+    if (err.status === 400 && err.error?.nombre) {
+
+      const erroresNombre = err.error.nombre;
+
+      const mensaje = Array.isArray(erroresNombre)
+        ? erroresNombre.join(' ')
+        : String(erroresNombre);
+
+      this.form.get('nombre')?.setErrors({
+        duplicado: true
+      });
+
+      this.toastWarn(mensaje);
+
+      return;
+    }
+
+    // Si el token caducó, el interceptor
+    // se encarga de renovar la sesión.
+    if (err.status === 401) {
+
+      this.toastError(
+        'Sesión',
+        'No se pudo autenticar la solicitud. Inicie sesión nuevamente.'
+      );
+
+      return;
+    }
+
+    this.toastError(
+      'Error',
+      mensajeGenerico
+    );
+  }
+
+  // ==========================================================
   // GUARDAR / ACTUALIZAR MASCOTA
   // ==========================================================
 
@@ -836,11 +966,43 @@ export class SnoutyMascotasPage implements OnInit {
     this.form.markAllAsTouched();
 
     if (this.form.invalid) {
-      this.toastWarn('Revisa los campos obligatorios.');
+      this.toastWarn(
+        'Revisa los campos obligatorios.'
+      );
       return;
     }
 
     const raw = this.form.getRawValue();
+
+    // ========================================================
+    // 1. NORMALIZAR NOMBRE
+    // ========================================================
+
+    const nombre = String(raw.nombre ?? '').trim();
+
+    if (!nombre) {
+
+      this.toastWarn(
+        'Debe ingresar el nombre de la mascota.'
+      );
+
+      return;
+    }
+
+    // ========================================================
+    // 2. COMPROBAR SI EL NOMBRE YA EXISTE
+    // ========================================================
+
+    if (this.existeNombreDuplicado(nombre)) {
+
+      this.mostrarNombreDuplicado(nombre);
+
+      return;
+    }
+
+    // ========================================================
+    // 3. CONVERTIR EDAD A MESES
+    // ========================================================
 
     let edad_meses: number | null = null;
 
@@ -857,8 +1019,12 @@ export class SnoutyMascotasPage implements OnInit {
           : Math.round(valor);
     }
 
+    // ========================================================
+    // 4. PREPARAR DATOS PARA DJANGO
+    // ========================================================
+
     const payload: any = {
-      nombre: raw.nombre,
+      nombre: nombre,
       sexo: raw.sexo,
       estado: raw.estado,
       fecha_registro: raw.fecha_registro,
@@ -890,7 +1056,7 @@ export class SnoutyMascotasPage implements OnInit {
     this.saving = true;
 
     // ========================================================
-    // EDITAR REGISTRO EXISTENTE
+    // 5. ACTUALIZAR MASCOTA EXISTENTE
     // ========================================================
 
     if (this.editingId !== null) {
@@ -920,15 +1086,15 @@ export class SnoutyMascotasPage implements OnInit {
           );
         },
 
-        error: (err) => {
+        error: (err: HttpErrorResponse) => {
 
           console.error(
             'Error actualizando mascota:',
             err
           );
 
-          this.toastError(
-            'Error',
+          this.mostrarErrorGuardado(
+            err,
             'No se pudo actualizar la mascota.'
           );
         }
@@ -937,7 +1103,7 @@ export class SnoutyMascotasPage implements OnInit {
     } else {
 
       // ======================================================
-      // CREAR NUEVA MASCOTA
+      // 6. REGISTRAR NUEVA MASCOTA
       // ======================================================
 
       this.http.post<Mascota>(
@@ -967,15 +1133,15 @@ export class SnoutyMascotasPage implements OnInit {
           );
         },
 
-        error: (err) => {
+        error: (err: HttpErrorResponse) => {
 
           console.error(
             'Error registrando mascota:',
             err
           );
 
-          this.toastError(
-            'Error',
+          this.mostrarErrorGuardado(
+            err,
             'No se pudo registrar la mascota.'
           );
         }
@@ -998,10 +1164,12 @@ export class SnoutyMascotasPage implements OnInit {
       !Number.isInteger(Number(row.id)) ||
       Number(row.id) <= 0
     ) {
+
       this.toastError(
         'Error',
         'No se encontró el ID de la mascota.'
       );
+
       return;
     }
 
@@ -1023,7 +1191,9 @@ export class SnoutyMascotasPage implements OnInit {
     }
 
     this.confirmVisible = false;
+
     this.mascotaToDelete = null;
+
     this.deleteError = '';
   }
 
@@ -1061,7 +1231,9 @@ export class SnoutyMascotasPage implements OnInit {
       next: () => {
 
         this.confirmVisible = false;
+
         this.mascotaToDelete = null;
+
         this.deleteError = '';
 
         this.loadMascotas();
@@ -1072,7 +1244,7 @@ export class SnoutyMascotasPage implements OnInit {
         );
       },
 
-      error: (err) => {
+      error: (err: HttpErrorResponse) => {
 
         console.error(
           'Error eliminando mascota:',
@@ -1115,11 +1287,15 @@ export class SnoutyMascotasPage implements OnInit {
       return 'Campo obligatorio.';
     }
 
+    if (control.errors?.['duplicado']) {
+      return 'Ya existe una mascota con este nombre.';
+    }
+
     return 'Campo inválido.';
   }
 
   // ==========================================================
-  // VALIDACIÓN DE EDAD - CORREGIDA
+  // VALIDACIÓN DE EDAD
   // ==========================================================
 
   private edadConsistenteValidator(): ValidatorFn {

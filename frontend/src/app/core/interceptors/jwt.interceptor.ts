@@ -1,42 +1,65 @@
+
 import {
+  HttpClient,
+  HttpErrorResponse,
   HttpEvent,
   HttpHandlerFn,
-  HttpRequest,
   HttpInterceptorFn,
-  HttpErrorResponse,
-  HttpClient,
+  HttpRequest
 } from '@angular/common/http';
+
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, Observable, throwError, switchMap } from 'rxjs';
+
+import {
+  catchError,
+  finalize,
+  Observable,
+  shareReplay,
+  switchMap,
+  throwError
+} from 'rxjs';
 
 import { AuthService } from '../../pages/auth/services/auth.service';
 
-let isRefreshing = false;
-let queue: Array<(token: string | null) => void> = [];
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
 
 const API_BASE = 'https://snoutyweb.onrender.com';
 
-function enqueue(cb: (token: string | null) => void) {
-  queue.push(cb);
+interface RefreshResponse {
+  access: string;
+  refresh?: string;
 }
 
-function flush(token: string | null) {
-  queue.forEach((cb) => cb(token));
-  queue = [];
-}
+// Una sola renovación compartida
+let refreshRequest$: Observable<string> | null = null;
+
+// ============================================================
+// INTERCEPTOR JWT
+// ============================================================
 
 export const jwtInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
-  next: HttpHandlerFn,
+  next: HttpHandlerFn
 ): Observable<HttpEvent<unknown>> => {
+
   const authService = inject(AuthService);
   const http = inject(HttpClient);
   const router = inject(Router);
 
+  // ==========================================================
+  // IDENTIFICAR PETICIONES DE AUTENTICACIÓN
+  // ==========================================================
+
   const isAuthUrl =
     req.url.includes('/api/token/') ||
     req.url.includes('/api/token/refresh/');
+
+  // ==========================================================
+  // IDENTIFICAR API
+  // ==========================================================
 
   const isApi =
     req.url.startsWith('/api/') ||
@@ -44,96 +67,156 @@ export const jwtInterceptor: HttpInterceptorFn = (
     req.url.startsWith('http://localhost:8000/api/') ||
     req.url.startsWith(`${API_BASE}/api/`);
 
-  const accessToken = authService.getAccessToken();
+  // ==========================================================
+  // ADJUNTAR ACCESS TOKEN
+  // ==========================================================
 
-  let authReq = req;
+  const token = authService.getAccessToken();
 
-  if (accessToken && !isAuthUrl && isApi) {
-    authReq = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-  }
+  const authReq =
+    token && isApi && !isAuthUrl
+      ? req.clone({
+          setHeaders: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+      : req;
+
+  // ==========================================================
+  // EJECUTAR PETICIÓN
+  // ==========================================================
 
   return next(authReq).pipe(
+
     catchError((error: HttpErrorResponse) => {
-      if (error.status !== 401 || !isApi || isAuthUrl) {
+
+      if (
+        error.status !== 401 ||
+        !isApi ||
+        isAuthUrl
+      ) {
         return throwError(() => error);
       }
+
+      // ======================================================
+      // COMPROBAR SI LA PETICIÓN USÓ UN TOKEN ANTIGUO
+      // ======================================================
+
+      const currentToken = authService.getAccessToken();
+
+      if (
+        token &&
+        currentToken &&
+        token !== currentToken
+      ) {
+        return next(
+          req.clone({
+            setHeaders: {
+              Authorization: `Bearer ${currentToken}`
+            }
+          })
+        );
+      }
+
+      // ======================================================
+      // OBTENER REFRESH TOKEN
+      // ======================================================
 
       const refreshToken = authService.getRefreshToken();
 
       if (!refreshToken) {
-        authService.logout(true);
+
+        authService.clearSession();
+
         router.navigate(['/auth/login']);
+
         return throwError(() => error);
       }
 
-      if (isRefreshing) {
-        return new Observable<HttpEvent<unknown>>((observer) => {
-          enqueue((newToken) => {
-            if (!newToken) {
-              observer.error(error);
-              return;
+      // ======================================================
+      // CREAR UNA SOLA RENOVACIÓN PARA TODAS LAS PETICIONES
+      // ======================================================
+
+      if (!refreshRequest$) {
+
+        refreshRequest$ = http.post<RefreshResponse>(
+          `${API_BASE}/api/token/refresh/`,
+          {
+            refresh: refreshToken
+          }
+        ).pipe(
+
+          switchMap((response) => {
+
+            if (!response.access) {
+              return throwError(
+                () => new Error(
+                  'No se recibió un nuevo access token.'
+                )
+              );
             }
 
-            const retryReq = req.clone({
-              setHeaders: {
-                Authorization: `Bearer ${newToken}`,
-              },
-            });
+            // Actualizar token de acceso
+            authService.setAccessToken(response.access);
 
-            next(retryReq).subscribe({
-              next: (ev) => observer.next(ev),
-              error: (e) => observer.error(e),
-              complete: () => observer.complete(),
+            // Actualizar refresh token rotado
+            if (response.refresh) {
+              authService.setRefreshToken(response.refresh);
+            }
+
+            return new Observable<string>((observer) => {
+              observer.next(response.access);
+              observer.complete();
             });
-          });
-        });
+          }),
+
+          catchError((refreshError) => {
+
+            console.error(
+              'Error renovando sesión:',
+              refreshError
+            );
+
+            // Si el usuario ya inició otra sesión,
+            // no borrar los tokens nuevos.
+            if (
+              authService.getRefreshToken() === refreshToken
+            ) {
+              authService.clearSession();
+              router.navigate(['/auth/login']);
+            }
+
+            return throwError(() => refreshError);
+          }),
+
+          finalize(() => {
+            refreshRequest$ = null;
+          }),
+
+          shareReplay({
+            bufferSize: 1,
+            refCount: false
+          })
+        );
       }
 
-      isRefreshing = true;
+      // ======================================================
+      // ESPERAR LA RENOVACIÓN Y REPETIR LA PETICIÓN
+      // ======================================================
 
-      return http
-        .post<any>(`${API_BASE}/api/token/refresh/`, {
-          refresh: refreshToken,
-        })
-        .pipe(
-          switchMap((res) => {
-            const newAccess = res?.access ?? null;
+      return refreshRequest$.pipe(
 
-            isRefreshing = false;
+        switchMap((newAccessToken) => {
 
-            if (!newAccess) {
-              flush(null);
-              authService.logout(true);
-              router.navigate(['/auth/login']);
-              return throwError(() => error);
+          const retryReq = req.clone({
+            setHeaders: {
+              Authorization: `Bearer ${newAccessToken}`
             }
+          });
 
-            authService.setAccessToken(newAccess);
-            flush(newAccess);
-
-            const retryReq = req.clone({
-              setHeaders: {
-                Authorization: `Bearer ${newAccess}`,
-              },
-            });
-
-            return next(retryReq);
-          }),
-
-          catchError((refreshErr) => {
-            isRefreshing = false;
-            flush(null);
-
-            authService.logout(true);
-            router.navigate(['/auth/login']);
-
-            return throwError(() => refreshErr);
-          }),
-        );
-    }),
+          return next(retryReq);
+        })
+      );
+    })
   );
 };

@@ -555,11 +555,18 @@ from rest_framework import serializers
 # y tu helper:
 # def _get_rol(request) -> str: ...
 
+
 class MascotaSerializer(serializers.ModelSerializer):
+
+    # ==========================================================
+    # ESPECIE Y RAZA
+    # ==========================================================
+
     especie_id = serializers.PrimaryKeyRelatedField(
         queryset=Especie.objects.all(),
         source="especie",
     )
+
     raza_id = serializers.PrimaryKeyRelatedField(
         queryset=Raza.objects.all(),
         source="raza",
@@ -567,13 +574,21 @@ class MascotaSerializer(serializers.ModelSerializer):
         required=False,
     )
 
-    # ✅ tu modelo lo tiene
+    # ==========================================================
+    # ESTADO ACTIVO
+    # ==========================================================
+
     activo = serializers.BooleanField(required=False)
 
-    # ✅ id tutor actual (read)
-    perfil_tutor_id = serializers.IntegerField(source="perfil_tutor.id", read_only=True)
+    # ==========================================================
+    # TUTOR
+    # ==========================================================
 
-    # ✅ SOLO para ADMIN (write-only) -> asignar tutor en create/update
+    perfil_tutor_id = serializers.IntegerField(
+        source="perfil_tutor.id",
+        read_only=True,
+    )
+
     perfil_tutor_assign_id = serializers.PrimaryKeyRelatedField(
         source="perfil_tutor",
         queryset=PerfilTutor.objects.all(),
@@ -582,7 +597,10 @@ class MascotaSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
-    # ✅ evita warning: min_value debe ser Decimal
+    # ==========================================================
+    # TAMAÑO
+    # ==========================================================
+
     tamano_cm = serializers.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -591,27 +609,82 @@ class MascotaSerializer(serializers.ModelSerializer):
         min_value=Decimal("0.00"),
     )
 
-    # edad UI (opcional): tu modelo guarda edad_meses
-    edad_valor = serializers.IntegerField(required=False, allow_null=True, min_value=0, write_only=True)
-    edad_unidad = serializers.ChoiceField(
+    # ==========================================================
+    # EDAD
+    # ==========================================================
+
+    edad_valor = serializers.IntegerField(
         required=False,
-        choices=[("MESES", "Meses"), ("ANIOS", "Años")],
+        allow_null=True,
+        min_value=0,
         write_only=True,
     )
 
-    fotos = FotoMascotaSerializer(many=True, read_only=True)  # related_name="fotos"
+    edad_unidad = serializers.ChoiceField(
+        required=False,
+        choices=[
+            ("MESES", "Meses"),
+            ("ANIOS", "Años"),
+        ],
+        write_only=True,
+    )
+
+    # ==========================================================
+    # FOTOGRAFÍAS
+    # ==========================================================
+
+    fotos = FotoMascotaSerializer(
+        many=True,
+        read_only=True,
+    )
+
     foto_url = serializers.SerializerMethodField()
 
-    tutor_nombres = serializers.CharField(source="perfil_tutor.user.nombres", read_only=True)
-    tutor_apellidos = serializers.CharField(source="perfil_tutor.user.apellidos", read_only=True)
-    tutor_telefono = serializers.CharField(source="perfil_tutor.user.telefono", read_only=True)
-    tutor_email = serializers.EmailField(source="perfil_tutor.user.email", read_only=True)
+    # ==========================================================
+    # INFORMACIÓN DEL TUTOR
+    # ==========================================================
 
-    especie_nombre = serializers.CharField(source="especie.nombre", read_only=True)
-    raza_nombre = serializers.CharField(source="raza.nombre", read_only=True)
+    tutor_nombres = serializers.CharField(
+        source="perfil_tutor.user.nombres",
+        read_only=True,
+    )
+
+    tutor_apellidos = serializers.CharField(
+        source="perfil_tutor.user.apellidos",
+        read_only=True,
+    )
+
+    tutor_telefono = serializers.CharField(
+        source="perfil_tutor.user.telefono",
+        read_only=True,
+    )
+
+    tutor_email = serializers.EmailField(
+        source="perfil_tutor.user.email",
+        read_only=True,
+    )
+
+    # ==========================================================
+    # NOMBRES DE ESPECIE Y RAZA
+    # ==========================================================
+
+    especie_nombre = serializers.CharField(
+        source="especie.nombre",
+        read_only=True,
+    )
+
+    raza_nombre = serializers.CharField(
+        source="raza.nombre",
+        read_only=True,
+    )
+
+    # ==========================================================
+    # META
+    # ==========================================================
 
     class Meta:
         model = Mascota
+
         fields = [
             "id",
             "nombre",
@@ -663,68 +736,196 @@ class MascotaSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    # ==========================================================
+    # VALIDAR NOMBRE ÚNICO
+    # ==========================================================
+
+    def validate_nombre(self, value):
+
+        nombre = value.strip()
+
+        if not nombre:
+            raise serializers.ValidationError(
+                "El nombre de la mascota es obligatorio."
+            )
+
+        # Buscar el nombre en todas las mascotas,
+        # independientemente del tutor o del estado.
+        mascotas_existentes = Mascota.objects.filter(
+            nombre__iexact=nombre
+        )
+
+        # Al editar, excluir la mascota actual.
+        if self.instance is not None:
+            mascotas_existentes = mascotas_existentes.exclude(
+                pk=self.instance.pk
+            )
+
+        if mascotas_existentes.exists():
+            raise serializers.ValidationError(
+                "Ya existe una mascota registrada con este nombre. "
+                "Ingrese un nombre diferente."
+            )
+
+        return nombre
+
+    # ==========================================================
+    # OBTENER FOTO PRINCIPAL
+    # ==========================================================
+
     def get_foto_url(self, obj: Mascota):
-        foto = obj.fotos.order_by("-fecha", "-id").first()
+
+        foto = obj.fotos.order_by(
+            "-fecha",
+            "-id"
+        ).first()
+
         if not foto:
             return ""
-        return getattr(foto, "imagen_url", None) or getattr(foto, "s3_url", "") or ""
+
+        return (
+            getattr(foto, "imagen_url", None)
+            or getattr(foto, "s3_url", "")
+            or ""
+        )
+
+    # ==========================================================
+    # VALIDAR FECHA DE REGISTRO
+    # ==========================================================
 
     def validate_fecha_registro(self, value):
+
         if value and value > timezone.now().date():
-            raise serializers.ValidationError("La fecha de registro no puede ser futura.")
+            raise serializers.ValidationError(
+                "La fecha de registro no puede ser futura."
+            )
+
         return value
 
+    # ==========================================================
+    # VALIDACIONES GENERALES
+    # ==========================================================
+
     def validate(self, attrs):
+
         request = self.context.get("request")
 
-        # 1) edad_valor/unidad -> edad_meses
-        edad_valor = attrs.pop("edad_valor", None)
-        edad_unidad = attrs.pop("edad_unidad", None)
+        # ------------------------------------------------------
+        # 1. CONVERTIR EDAD A MESES
+        # ------------------------------------------------------
+
+        edad_valor = attrs.pop(
+            "edad_valor",
+            None
+        )
+
+        edad_unidad = attrs.pop(
+            "edad_unidad",
+            None
+        )
 
         if edad_valor is not None:
-            unidad = (edad_unidad or "MESES").upper()
-            attrs["edad_meses"] = (int(edad_valor) * 12) if unidad == "ANIOS" else int(edad_valor)
 
-        # 2) raza corresponde a especie
-        especie = attrs.get("especie") or getattr(self.instance, "especie", None)
-        raza = attrs.get("raza") or getattr(self.instance, "raza", None)
-        if raza and especie and raza.especie_id != especie.id:
-            raise serializers.ValidationError({"raza_id": "La raza seleccionada no corresponde a la especie elegida."})
+            unidad = (
+                edad_unidad or "MESES"
+            ).upper()
 
-        # 3) ✅ CRÍTICO: si es CREATE y rol ADMIN, exigir tutor (perfil_tutor)
+            attrs["edad_meses"] = (
+                int(edad_valor) * 12
+                if unidad == "ANIOS"
+                else int(edad_valor)
+            )
+
+        # ------------------------------------------------------
+        # 2. VALIDAR RAZA SEGÚN ESPECIE
+        # ------------------------------------------------------
+
+        especie = (
+            attrs.get("especie")
+            or getattr(self.instance, "especie", None)
+        )
+
+        raza = (
+            attrs.get("raza")
+            or getattr(self.instance, "raza", None)
+        )
+
+        if (
+            raza
+            and especie
+            and raza.especie_id != especie.id
+        ):
+            raise serializers.ValidationError({
+                "raza_id":
+                    "La raza seleccionada no corresponde "
+                    "a la especie elegida."
+            })
+
+        # ------------------------------------------------------
+        # 3. EXIGIR TUTOR AL ADMINISTRADOR
+        # ------------------------------------------------------
+
         if request and self.instance is None:
+
             rol = _get_rol(request)
 
             if rol == "ADMIN":
-                # el admin DEBE mandar perfil_tutor_assign_id (que llena attrs["perfil_tutor"])
-                if "perfil_tutor" not in attrs or attrs.get("perfil_tutor") is None:
+
+                if (
+                    "perfil_tutor" not in attrs
+                    or attrs.get("perfil_tutor") is None
+                ):
                     raise serializers.ValidationError({
-                        "perfil_tutor_assign_id": "ADMIN debe asignar un tutor (perfil_tutor_assign_id) al crear la mascota."
+                        "perfil_tutor_assign_id":
+                            "Debe seleccionar un tutor "
+                            "para registrar la mascota."
                     })
 
-        # 4) default activo
-        if self.instance is None and "activo" not in attrs:
+        # ------------------------------------------------------
+        # 4. ESTADO ACTIVO POR DEFECTO
+        # ------------------------------------------------------
+
+        if (
+            self.instance is None
+            and "activo" not in attrs
+        ):
             attrs["activo"] = True
 
         return attrs
 
+    # ==========================================================
+    # REPRESENTACIÓN DE LOS DATOS
+    # ==========================================================
+
     def to_representation(self, instance):
+
         data = super().to_representation(instance)
 
-        # reconstruir edad UI (solo para mostrar)
+        # Recuperar edad para mostrar en Angular.
         edad_meses = instance.edad_meses
+
         if edad_meses is None:
+
             data["edad_valor"] = None
             data["edad_unidad"] = "MESES"
+
         else:
+
             if edad_meses % 12 == 0:
-                data["edad_valor"] = edad_meses // 12
+
+                data["edad_valor"] = (
+                    edad_meses // 12
+                )
+
                 data["edad_unidad"] = "ANIOS"
+
             else:
+
                 data["edad_valor"] = edad_meses
                 data["edad_unidad"] = "MESES"
 
         return data
+
 # ============================================================
 # HISTORIAL MÉDICO
 # ADMIN CRUD, TUTOR solo lectura

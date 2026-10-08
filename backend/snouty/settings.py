@@ -125,6 +125,11 @@ WSGI_APPLICATION = "snouty.wsgi.application"
 # BASE DE DATOS
 # ============================================================
 
+
+# ============================================================
+# BASE DE DATOS MYSQL - AIVEN
+# ============================================================
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
@@ -133,11 +138,16 @@ DATABASES = {
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.environ["DB_HOST"],
         "PORT": os.environ["DB_PORT"],
+
         "OPTIONS": {
             "charset": "utf8mb4",
+            "ssl": {
+                "ca": str(BASE_DIR / "certs" / "ca.pem"),
+            },
         },
     }
 }
+
 
 
 # ============================================================
@@ -329,17 +339,26 @@ REST_FRAMEWORK = {
 # JWT
 # ============================================================
 
+
+# ============================================================
+# JWT - AUTENTICACIÓN SNOUTY
+# ============================================================
+
+from datetime import timedelta
+
 SIMPLE_JWT = {
 
-    "AUTH_HEADER_TYPES": (
-        "Bearer",
-    ),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 
     "ROTATE_REFRESH_TOKENS": True,
 
     "BLACKLIST_AFTER_ROTATION": True,
-}
 
+    "AUTH_HEADER_TYPES": ("Bearer",),
+
+}
 
 # ============================================================
 # CELERY

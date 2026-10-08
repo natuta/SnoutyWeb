@@ -331,63 +331,196 @@ class Raza(models.Model):
 # ============================================================
 # MASCOTA
 # ============================================================
+
 class Mascota(models.Model):
-    SEXO_CHOICES = (("M", "Macho"), ("F", "Hembra"))
+
+    SEXO_CHOICES = (
+        ("M", "Macho"),
+        ("F", "Hembra"),
+    )
+
     ESTADO_CHOICES = (
         ("DISPONIBLE", "Disponible"),
         ("RESERVADO", "Reservado"),
         ("INACTIVO", "Inactivo"),
     )
 
-    id = models.BigAutoField(primary_key=True)
-    nombre = models.CharField(max_length=100)
-    sexo = models.CharField(max_length=1, choices=SEXO_CHOICES)
-    edad_meses = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MinValueValidator(0)])
+    # ==========================================================
+    # IDENTIFICADOR
+    # ==========================================================
 
-    estado = models.CharField(max_length=15, choices=ESTADO_CHOICES, default="DISPONIBLE")
+    id = models.BigAutoField(primary_key=True)
+
+    # ==========================================================
+    # NOMBRE ÚNICO PARA TODAS LAS MASCOTAS
+    # ==========================================================
+
+    nombre = models.CharField(
+        max_length=100,
+        unique=True,
+        error_messages={
+            "unique": "Ya existe una mascota registrada con este nombre."
+        },
+    )
+
+    # ==========================================================
+    # DATOS BÁSICOS
+    # ==========================================================
+
+    sexo = models.CharField(
+        max_length=1,
+        choices=SEXO_CHOICES,
+    )
+
+    edad_meses = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
+
+    estado = models.CharField(
+        max_length=15,
+        choices=ESTADO_CHOICES,
+        default="DISPONIBLE",
+    )
 
     activo = models.BooleanField(default=True)
 
     fecha_registro = models.DateField()
-    color = models.CharField(max_length=50, null=True, blank=True)
+
+    # ==========================================================
+    # CARACTERÍSTICAS
+    # ==========================================================
+
+    color = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+
     tamano_cm = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         null=True,
         blank=True,
-        # ✅ FIX: DecimalField => min_value debe ser Decimal
-        validators=[MinValueValidator(Decimal("0.00"))],
+        validators=[
+            MinValueValidator(Decimal("0.00"))
+        ],
     )
-    descripcion = models.TextField(null=True, blank=True)
 
-    ubicacion = models.CharField(max_length=255, null=True, blank=True)
+    descripcion = models.TextField(
+        null=True,
+        blank=True,
+    )
+
+    ubicacion = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+    )
+
+    # ==========================================================
+    # RELACIONES
+    # ==========================================================
 
     especie = models.ForeignKey(
-        Especie, on_delete=models.RESTRICT, db_column="especie_id", related_name="mascotas"
+        Especie,
+        on_delete=models.RESTRICT,
+        db_column="especie_id",
+        related_name="mascotas",
     )
+
     raza = models.ForeignKey(
-        Raza, on_delete=models.SET_NULL, db_column="raza_id", null=True, blank=True, related_name="mascotas"
+        Raza,
+        on_delete=models.SET_NULL,
+        db_column="raza_id",
+        null=True,
+        blank=True,
+        related_name="mascotas",
     )
 
     perfil_tutor = models.ForeignKey(
-        PerfilTutor, on_delete=models.RESTRICT, db_column="perfil_tutor_id", related_name="mascotas"
+        PerfilTutor,
+        on_delete=models.RESTRICT,
+        db_column="perfil_tutor_id",
+        related_name="mascotas",
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # ==========================================================
+    # AUDITORÍA
+    # ==========================================================
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    # ==========================================================
+    # CONFIGURACIÓN DE TABLA
+    # ==========================================================
 
     class Meta:
         db_table = "mascotas"
 
+    # ==========================================================
+    # REPRESENTACIÓN
+    # ==========================================================
+
     def __str__(self):
         return f"{self.nombre} ({self.estado})"
 
-    def clean(self):
-        if self.fecha_registro and self.fecha_registro > timezone.now().date():
-            raise ValidationError("La fecha de registro no puede ser futura.")
-        if self.raza and self.especie and self.raza.especie_id != self.especie_id:
-            raise ValidationError("La raza no corresponde a la especie.")
+    # ==========================================================
+    # VALIDACIONES
+    # ==========================================================
 
+    def clean(self):
+        super().clean()
+
+        # Validar fecha de registro
+        if (
+            self.fecha_registro
+            and self.fecha_registro > timezone.now().date()
+        ):
+            raise ValidationError({
+                "fecha_registro":
+                    "La fecha de registro no puede ser futura."
+            })
+
+        # Validar que la raza corresponda a la especie
+        if (
+            self.raza_id is not None
+            and self.especie_id is not None
+        ):
+            if self.raza.especie_id != self.especie_id:
+                raise ValidationError({
+                    "raza":
+                        "La raza no corresponde a la especie."
+                })
+
+        # Validar que el nombre no esté vacío
+        if self.nombre is not None:
+            self.nombre = self.nombre.strip()
+
+        if not self.nombre:
+            raise ValidationError({
+                "nombre":
+                    "El nombre de la mascota es obligatorio."
+            })
+
+        # Verificar nombre repetido en toda la base de datos
+        mascotas_existentes = Mascota.objects.filter(
+            nombre__iexact=self.nombre
+        ).exclude(pk=self.pk)
+
+        if mascotas_existentes.exists():
+            raise ValidationError({
+                "nombre":
+                    "Ya existe una mascota registrada con este nombre. "
+                    "Ingrese un nombre diferente."
+            })
 
 # ============================================================
 # FOTO MASCOTA
