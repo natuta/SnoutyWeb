@@ -38,7 +38,9 @@
 
     <ng-template pTemplate="body" let-row>
       <tr>
-        <td>{{ row.id }}</td>
+        <td>
+          <strong>{{ row.id }}</strong>
+        </td>
         <td>{{ row.nombre }}</td>
         <td>{{ nombreEspecie(row.especie_id) }}</td>
         <td>{{ nombreRaza(row.raza_id) }}</td>
@@ -71,7 +73,9 @@
 
     <ng-template pTemplate="emptymessage">
       <tr>
-        <td colspan="9">No hay mascotas registradas.</td>
+        <td colspan="9">
+          No hay mascotas registradas.
+        </td>
       </tr>
     </ng-template>
 
@@ -86,10 +90,38 @@
   [draggable]="false"
   [dismissableMask]="true"
   [style]="{ width: '1100px', 'max-width': '95vw' }"
-  [contentStyle]="{ 'max-height': '80vh', overflow: 'auto', display: 'block' }"
-  [header]="editingId ? 'Editar mascota' : 'Nueva mascota'">
+  [contentStyle]="{
+    'max-height': '80vh',
+    overflow: 'auto',
+    display: 'block'
+  }"
+  [header]="editingId !== null ? 'Editar mascota' : 'Nueva mascota'">
 
   <form [formGroup]="form" style="width:100%;">
+
+    <!-- ================= ID EN EDICIÓN ================= -->
+    <div
+      *ngIf="editingId !== null"
+      style="
+        margin-bottom:20px;
+        padding:12px 16px;
+        border:1px solid #d1d5db;
+        border-radius:8px;
+        display:flex;
+        align-items:center;
+        gap:12px;
+      ">
+
+      <span style="font-weight:600;">
+        ID de mascota:
+      </span>
+
+      <strong style="font-size:18px;">
+        {{ editingId }}
+      </strong>
+
+    </div>
+
 
     <!-- ================= STEPS ================= -->
     <div style="margin-bottom:20px;">
@@ -126,12 +158,17 @@
               formControlName="especie_id"
               class="p-inputtext"
               style="width:100%;">
-              <option [ngValue]="null">Seleccione</option>
+
+              <option [ngValue]="null">
+                Seleccione
+              </option>
+
               <option
                 *ngFor="let e of especies"
                 [ngValue]="e.id">
                 {{ e.nombre }}
               </option>
+
             </select>
           </div>
 
@@ -141,12 +178,17 @@
               formControlName="raza_id"
               class="p-inputtext"
               style="width:100%;">
-              <option [ngValue]="null">Seleccione</option>
+
+              <option [ngValue]="null">
+                Seleccione
+              </option>
+
               <option
                 *ngFor="let r of razasFiltradasPorEspecie"
                 [ngValue]="r.id">
                 {{ r.nombre }}
               </option>
+
             </select>
           </div>
 
@@ -154,6 +196,7 @@
             <label>Edad</label>
 
             <div style="display:flex; gap:10px;">
+
               <input
                 type="number"
                 class="p-inputtext"
@@ -164,11 +207,13 @@
                 class="p-inputtext"
                 formControlName="edad_unidad"
                 style="flex:1; min-width:0;">
+
                 <option
                   *ngFor="let u of edadUnidadOptions"
                   [ngValue]="u.value">
                   {{ u.label }}
                 </option>
+
               </select>
             </div>
           </div>
@@ -194,11 +239,13 @@
               class="p-inputtext"
               formControlName="estado"
               style="width:100%;">
+
               <option
                 *ngFor="let e of estadoOptions"
                 [ngValue]="e.value">
                 {{ e.label }}
               </option>
+
             </select>
           </div>
 
@@ -208,11 +255,13 @@
               class="p-inputtext"
               formControlName="sexo"
               style="width:100%;">
+
               <option
                 *ngFor="let s of sexoOptions"
                 [ngValue]="s.value">
                 {{ s.label }}
               </option>
+
             </select>
           </div>
 
@@ -222,10 +271,14 @@
 
             <div
               style="display:flex; justify-content:space-between; margin-bottom:6px;">
+
               <label>Tutor *</label>
+
               <span style="font-size:12px;">
-                Seleccionado: {{ getTutorSeleccionadoLabel() }}
+                Seleccionado:
+                {{ getTutorSeleccionadoLabel() }}
               </span>
+
             </div>
 
             <p-autoComplete
@@ -309,7 +362,13 @@
       <h3>Confirmar datos de la mascota</h3>
 
       <p *ngIf="editingId !== null">
-        <b>ID:</b> {{ editingId }}
+        <b>ID de mascota:</b>
+        {{ editingId }}
+      </p>
+
+      <p *ngIf="editingId === null">
+        <b>ID de mascota:</b>
+        Se asignará automáticamente al guardar.
       </p>
 
       <p>
@@ -437,16 +496,23 @@
   [style]="{ width: '500px', 'max-width': '95vw' }"
   header="Confirmar eliminación">
 
-  <p>
-    ¿Seguro que deseas eliminar a
-    <b>{{ mascotaToDelete?.nombre }}</b>?
-  </p>
+  <ng-container *ngIf="mascotaToDelete as mascota">
 
-  <p *ngIf="mascotaToDelete?.id">
-    <b>ID de mascota:</b> {{ mascotaToDelete?.id }}
-  </p>
+    <p>
+      ¿Seguro que deseas eliminar a
+      <b>{{ mascota.nombre }}</b>?
+    </p>
 
-  <p *ngIf="deleteError" style="color:#dc2626;">
+    <p>
+      <b>ID de mascota:</b>
+      <strong>{{ mascota.id }}</strong>
+    </p>
+
+  </ng-container>
+
+  <p
+    *ngIf="deleteError"
+    style="color:#dc2626;">
     {{ deleteError }}
   </p>
 

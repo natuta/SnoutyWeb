@@ -1,836 +1,912 @@
+
 import { Component, OnInit } from '@angular/core';
-
 import { CommonModule } from '@angular/common';
-
 import { HttpClient } from '@angular/common/http';
 
 import {
-
   AbstractControl,
-
   FormBuilder,
-
   FormGroup,
-
   FormsModule,
-
   ReactiveFormsModule,
-
   ValidationErrors,
-
   ValidatorFn,
-
-  Validators,
-
+  Validators
 } from '@angular/forms';
 
+import { finalize } from 'rxjs';
 
-
-// PrimeNG
+// ============================================================
+// PRIMENG
+// ============================================================
 
 import { TableModule } from 'primeng/table';
-
 import { ButtonModule } from 'primeng/button';
-
 import { InputTextModule } from 'primeng/inputtext';
-
 import { DialogModule } from 'primeng/dialog';
-
 import { StepsModule } from 'primeng/steps';
-
 import { ToastModule } from 'primeng/toast';
-
 import { MessageModule } from 'primeng/message';
-
 import { MessageService } from 'primeng/api';
-
 import { AutoCompleteModule } from 'primeng/autocomplete';
 
+// ============================================================
+// MODELOS
+// ============================================================
 
+import {
+  Mascota,
+  Especie,
+  Raza,
+  EdadUnidad,
+  SexoMascota,
+  EstadoMascota
+} from '../snouty.models';
 
-import { Mascota, Especie, Raza, EdadUnidad, SexoMascota, EstadoMascota } from '../snouty.models';
+import {
+  AuthService,
+  AuthUser,
+  UserRole
+} from '../../auth/services/auth.service';
 
-import { AuthService, AuthUser, UserRole } from '../../auth/services/auth.service';
+// ============================================================
+// TIPOS AUXILIARES
+// ============================================================
 
+type StepItem = {
+  label: string;
+};
 
+type TutorOption = {
+  id: number;
+  label: string;
+};
 
-type StepItem = { label: string };
-
-type TutorOption = { id: number; label: string };
-
-
+// ============================================================
+// COMPONENTE
+// ============================================================
 
 @Component({
-
   selector: 'app-snouty-mascotas',
-
   standalone: true,
 
   imports: [
-
     CommonModule,
-
     FormsModule,
-
     ReactiveFormsModule,
-
     TableModule,
-
     ButtonModule,
-
     InputTextModule,
-
     DialogModule,
-
     StepsModule,
-
     ToastModule,
-
     MessageModule,
-
-    AutoCompleteModule,
-
+    AutoCompleteModule
   ],
 
   providers: [MessageService],
 
-  templateUrl: './mascotas.html',
-
+  templateUrl: './mascotas.html'
 })
-
 export class SnoutyMascotasPage implements OnInit {
 
+  // ==========================================================
+  // LISTAS
+  // ==========================================================
+
   mascotas: Mascota[] = [];
-
   especies: Especie[] = [];
-
   razas: Raza[] = [];
-
   razasFiltradasPorEspecie: Raza[] = [];
 
-
-
+  // ==========================================================
   // TUTORES
+  // ==========================================================
 
   tutores: TutorOption[] = [];
-
   tutoresFiltrados: TutorOption[] = [];
-
   tutorSeleccionado: TutorOption | null = null;
 
-
+  // ==========================================================
+  // FORMULARIO
+  // ==========================================================
 
   form: FormGroup;
 
-
-
   dialogVisible = false;
 
+  // ID de la mascota seleccionada para editar
   editingId: number | null = null;
 
-
-
-  // ELIMINAR
+  // ==========================================================
+  // ELIMINACIÓN
+  // ==========================================================
 
   confirmVisible = false;
-
   mascotaToDelete: Mascota | null = null;
-
   deleteError = '';
 
-
+  // ==========================================================
+  // ESTADO
+  // ==========================================================
 
   saving = false;
 
-
+  // ==========================================================
+  // PASOS
+  // ==========================================================
 
   stepItems: StepItem[] = [
-
     { label: 'Datos básicos' },
-
     { label: 'Características' },
-
     { label: 'Ubicación' },
-
-    { label: 'Confirmar' },
-
+    { label: 'Confirmar' }
   ];
 
   activeStepIndex = 0;
 
+  // ==========================================================
+  // ENDPOINTS DJANGO - RENDER
+  // ==========================================================
 
+  private readonly baseMascotas =
+    'https://snoutyweb.onrender.com/api/mascotas/';
 
-private baseMascotas = 'https://snoutyweb.onrender.com/api/mascotas/';
+  private readonly baseEspecies =
+    'https://snoutyweb.onrender.com/api/especies/';
 
-private baseEspecies = 'https://snoutyweb.onrender.com/api/especies/';
+  private readonly baseRazas =
+    'https://snoutyweb.onrender.com/api/razas/';
 
-private baseRazas = 'https://snoutyweb.onrender.com/api/razas/';
+  private readonly basePerfilesTutor =
+    'https://snoutyweb.onrender.com/api/perfiles-tutor/';
 
-private basePerfilesTutor = 'https://snoutyweb.onrender.com/api/perfiles-tutor/';
+  // ==========================================================
+  // OPCIONES
+  // ==========================================================
 
-
-
-  sexoOptions: { label: string; value: SexoMascota }[] = [
-
+  sexoOptions: {
+    label: string;
+    value: SexoMascota;
+  }[] = [
     { label: 'Macho', value: 'M' as SexoMascota },
-
-    { label: 'Hembra', value: 'F' as SexoMascota },
-
+    { label: 'Hembra', value: 'F' as SexoMascota }
   ];
 
-
-
-  estadoOptions: { label: string; value: EstadoMascota }[] = [
-
-    { label: 'Disponible', value: 'DISPONIBLE' as EstadoMascota },
-
-    { label: 'Reservado', value: 'RESERVADO' as EstadoMascota },
-
-    { label: 'Inactivo', value: 'INACTIVO' as EstadoMascota },
-
+  estadoOptions: {
+    label: string;
+    value: EstadoMascota;
+  }[] = [
+    {
+      label: 'Disponible',
+      value: 'DISPONIBLE' as EstadoMascota
+    },
+    {
+      label: 'Reservado',
+      value: 'RESERVADO' as EstadoMascota
+    },
+    {
+      label: 'Inactivo',
+      value: 'INACTIVO' as EstadoMascota
+    }
   ];
 
-
-
-  edadUnidadOptions: { label: string; value: EdadUnidad }[] = [
-
-    { label: 'Meses', value: 'MESES' as EdadUnidad },
-
-    { label: 'Años', value: 'ANIOS' as EdadUnidad },
-
+  edadUnidadOptions: {
+    label: string;
+    value: EdadUnidad;
+  }[] = [
+    {
+      label: 'Meses',
+      value: 'MESES' as EdadUnidad
+    },
+    {
+      label: 'Años',
+      value: 'ANIOS' as EdadUnidad
+    }
   ];
 
-
+  // ==========================================================
+  // AUTENTICACIÓN Y PERMISOS
+  // ==========================================================
 
   currentUser: AuthUser | null = null;
-
   rolUsuario: UserRole = null;
 
-
-
   get isAdminUser(): boolean {
-
     return this.rolUsuario === 'ADMIN';
-
   }
-
-
 
   get canCreate(): boolean {
-
     return this.isAdminUser;
-
   }
 
-
+  // ==========================================================
+  // CONSTRUCTOR
+  // ==========================================================
 
   constructor(
-
     private http: HttpClient,
-
     private fb: FormBuilder,
-
     private authService: AuthService,
-
     private messageService: MessageService
-
   ) {
 
     this.form = this.fb.group(
-
       {
+        nombre: [
+          '',
+          [
+            Validators.required,
+            Validators.maxLength(100)
+          ]
+        ],
 
-        nombre: ['', [Validators.required, Validators.maxLength(100)]],
+        sexo: [
+          'M',
+          Validators.required
+        ],
 
-        sexo: ['M', Validators.required],
+        estado: [
+          'DISPONIBLE',
+          Validators.required
+        ],
 
-        estado: ['DISPONIBLE', Validators.required],
+        fecha_registro: [
+          this.getTodayLocalISO(),
+          Validators.required
+        ],
 
-        fecha_registro: [this.getTodayLocalISO(), Validators.required],
+        edad_valor: [
+          null,
+          [Validators.min(0)]
+        ],
 
+        edad_unidad: [
+          'MESES' as EdadUnidad
+        ],
 
-
-        edad_valor: [null, [Validators.min(0)]],
-
-        edad_unidad: ['MESES' as EdadUnidad],
-
-
-
-        especie_id: [null, Validators.required],
+        especie_id: [
+          null,
+          Validators.required
+        ],
 
         raza_id: [null],
 
+        perfil_tutor_assign_id: [
+          null,
+          Validators.required
+        ],
 
+        ubicacion: [
+          '',
+          [Validators.maxLength(180)]
+        ],
 
-        // requerido en create
+        color: [
+          '',
+          [Validators.maxLength(50)]
+        ],
 
-        perfil_tutor_assign_id: [null, Validators.required],
+        tamano_cm: [
+          null,
+          [
+            Validators.min(0),
+            Validators.max(300)
+          ]
+        ],
 
-
-
-        ubicacion: ['', [Validators.maxLength(180)]],
-
-        color: ['', [Validators.maxLength(50)]],
-
-        tamano_cm: [null, [Validators.min(0), Validators.max(300)]],
-
-        descripcion: ['', [Validators.maxLength(500)]],
-
+        descripcion: [
+          '',
+          [Validators.maxLength(500)]
+        ]
       },
-
-      { validators: [this.edadConsistenteValidator()] }
-
+      {
+        validators: [
+          this.edadConsistenteValidator()
+        ]
+      }
     );
 
+    // Actualizar las razas al cambiar la especie
+    this.form.get('especie_id')?.valueChanges.subscribe(
+      (id: number | null) => {
 
+        this.filtrarRazasPorEspecie(id);
 
-    this.form.get('especie_id')?.valueChanges.subscribe((id) => {
+        const razaId = this.form.get('raza_id')?.value;
 
-      this.filtrarRazasPorEspecie(id);
+        if (razaId != null) {
 
+          const raza = this.razas.find(
+            r => r.id === Number(razaId)
+          );
 
-
-      const razaId = this.form.get('raza_id')?.value;
-
-      if (razaId) {
-
-        const r = this.razas.find((x) => x.id === razaId);
-
-        if (!r || r.especie_id !== id) {
-
-          this.form.patchValue({ raza_id: null }, { emitEvent: false });
-
+          if (
+            !raza ||
+            raza.especie_id !== Number(id)
+          ) {
+            this.form.patchValue(
+              { raza_id: null },
+              { emitEvent: false }
+            );
+          }
         }
-
       }
-
-    });
-
+    );
   }
 
-
+  // ==========================================================
+  // INICIALIZACIÓN
+  // ==========================================================
 
   ngOnInit(): void {
 
-    this.currentUser = this.authService.getCurrentUser();
+    this.currentUser =
+      this.authService.getCurrentUser();
 
-    this.rolUsuario = this.currentUser?.rol || null;
-
-
+    this.rolUsuario =
+      this.currentUser?.rol || null;
 
     this.loadEspecies();
-
     this.loadRazas();
-
     this.loadMascotas();
 
-
-
-    if (this.isAdminUser) this.loadTutores();
-
+    if (this.isAdminUser) {
+      this.loadTutores();
+    }
   }
 
-
-
-  // ================= CARGA =================
+  // ==========================================================
+  // CARGAR MASCOTAS
+  // ==========================================================
 
   loadMascotas(): void {
 
     this.http.get<Mascota[]>(this.baseMascotas).subscribe({
 
-      next: (data) => (this.mascotas = data || []),
+      next: (data: Mascota[]) => {
 
-      error: (err) => console.error('Error cargando mascotas', err),
+        this.mascotas = data || [];
 
+        console.log(
+          'Mascotas cargadas:',
+          this.mascotas
+        );
+
+      },
+
+      error: (err) => {
+
+        console.error(
+          'Error cargando mascotas:',
+          err
+        );
+
+        this.toastError(
+          'Error',
+          'No se pudo cargar la lista de mascotas.'
+        );
+      }
     });
-
   }
 
-
+  // ==========================================================
+  // CARGAR ESPECIES
+  // ==========================================================
 
   loadEspecies(): void {
 
     this.http.get<Especie[]>(this.baseEspecies).subscribe({
 
-      next: (data) => (this.especies = data || []),
+      next: (data: Especie[]) => {
+        this.especies = data || [];
+      },
 
-      error: (err) => console.error('Error cargando especies', err),
-
+      error: (err) => {
+        console.error('Error cargando especies:', err);
+      }
     });
-
   }
 
-
+  // ==========================================================
+  // CARGAR RAZAS
+  // ==========================================================
 
   loadRazas(): void {
 
     this.http.get<Raza[]>(this.baseRazas).subscribe({
 
-      next: (data) => {
+      next: (data: Raza[]) => {
 
         this.razas = data || [];
 
-        this.razasFiltradasPorEspecie = [...this.razas];
+        this.razasFiltradasPorEspecie = [
+          ...this.razas
+        ];
 
+        const especieId =
+          this.form.get('especie_id')?.value ?? null;
+
+        this.filtrarRazasPorEspecie(especieId);
       },
 
-      error: (err) => console.error('Error cargando razas', err),
-
+      error: (err) => {
+        console.error('Error cargando razas:', err);
+      }
     });
-
   }
 
-
+  // ==========================================================
+  // CARGAR TUTORES
+  // ==========================================================
 
   loadTutores(): void {
 
     this.http.get<any[]>(this.basePerfilesTutor).subscribe({
 
-      next: (data) => {
+      next: (data: any[]) => {
 
-        const lista: TutorOption[] = (data || []).map((p: any) => {
+        const lista: TutorOption[] = (data || []).map(
+          (p: any) => {
 
-          const nombres = p?.user?.perfil_usuario?.nombres || '';
+            const nombres =
+              p?.user?.perfil_usuario?.nombres || '';
 
-          const apellidos = p?.user?.perfil_usuario?.apellidos || '';
+            const apellidos =
+              p?.user?.perfil_usuario?.apellidos || '';
 
-          const email = p?.user?.email || '';
+            const email =
+              p?.user?.email || '';
 
-          const label = `${nombres} ${apellidos}`.trim() || email || `Tutor ${p?.id}`;
+            const label =
+              `${nombres} ${apellidos}`.trim() ||
+              email ||
+              `Tutor ${p?.id}`;
 
-          return { id: Number(p.id), label };
-
-        });
-
-
+            return {
+              id: Number(p.id),
+              label: label
+            };
+          }
+        );
 
         this.tutores = lista;
-
         this.tutoresFiltrados = [...lista];
-
       },
 
-      error: (err) => console.error('Error cargando tutores', err),
-
+      error: (err) => {
+        console.error('Error cargando tutores:', err);
+      }
     });
-
   }
 
+  // ==========================================================
+  // FILTRAR RAZAS POR ESPECIE
+  // ==========================================================
 
+  filtrarRazasPorEspecie(
+    especieId: number | null
+  ): void {
 
-  filtrarRazasPorEspecie(especieId: number | null): void {
+    if (especieId == null) {
+      this.razasFiltradasPorEspecie = [...this.razas];
+      return;
+    }
 
-    if (!especieId) this.razasFiltradasPorEspecie = [...this.razas];
-
-    else this.razasFiltradasPorEspecie = this.razas.filter((r) => r.especie_id === especieId);
-
+    this.razasFiltradasPorEspecie = this.razas.filter(
+      r => r.especie_id === Number(especieId)
+    );
   }
 
-
-
-  // ================= AUTOCOMPLETE TUTOR (PrimeNG 19) =================
+  // ==========================================================
+  // AUTOCOMPLETE DE TUTORES
+  // ==========================================================
 
   onTutorComplete(event: any): void {
 
-    const q = (event?.query ?? '').toString().trim().toLowerCase();
+    const query = String(
+      event?.query ?? ''
+    ).trim().toLowerCase();
 
-    if (!q) {
-
+    if (!query) {
       this.tutoresFiltrados = [...this.tutores];
-
       return;
-
     }
 
-    this.tutoresFiltrados = this.tutores.filter((t) => (t.label || '').toLowerCase().includes(q));
-
+    this.tutoresFiltrados = this.tutores.filter(
+      tutor =>
+        tutor.label.toLowerCase().includes(query)
+    );
   }
-
-
-
-  // PrimeNG 19: onSelect devuelve evento y el objeto está en event.value
 
   onTutorSelect(event: any): void {
 
-    const t = (event?.value ?? null) as TutorOption | null;
+    const tutor: TutorOption | null =
+      event?.value ?? null;
 
-    this.tutorSeleccionado = t;
+    this.tutorSeleccionado = tutor;
 
-    this.form.patchValue({ perfil_tutor_assign_id: t?.id ?? null });
-
+    this.form.patchValue({
+      perfil_tutor_assign_id: tutor?.id ?? null
+    });
   }
-
-
 
   clearTutor(): void {
 
     this.tutorSeleccionado = null;
 
-    this.form.patchValue({ perfil_tutor_assign_id: null });
-
+    this.form.patchValue({
+      perfil_tutor_assign_id: null
+    });
   }
-
-
 
   getTutorSeleccionadoLabel(): string {
 
-    const id = this.form.get('perfil_tutor_assign_id')?.value;
+    const id =
+      this.form.get('perfil_tutor_assign_id')?.value;
 
-    if (!id) return '-';
+    if (id == null) {
+      return '-';
+    }
 
-    return this.tutores.find((x) => x.id === Number(id))?.label || '-';
-
+    return this.tutores.find(
+      tutor => tutor.id === Number(id)
+    )?.label || '-';
   }
 
+  // ==========================================================
+  // NOMBRE DE ESPECIE
+  // ==========================================================
 
+  nombreEspecie(
+    id: number | null | undefined
+  ): string {
 
-  // ================= HELPERS =================
+    if (id == null) {
+      return '';
+    }
 
-  nombreEspecie(id: number | null | undefined): string {
-
-    if (!id) return '';
-
-    return this.especies.find((x) => x.id === id)?.nombre || '';
-
+    return this.especies.find(
+      especie => especie.id === Number(id)
+    )?.nombre || '';
   }
 
+  // ==========================================================
+  // NOMBRE DE RAZA
+  // ==========================================================
 
+  nombreRaza(
+    id: number | null | undefined
+  ): string {
 
-  nombreRaza(id: number | null | undefined): string {
+    if (id == null) {
+      return '';
+    }
 
-    if (!id) return '';
-
-    return this.razas.find((x) => x.id === id)?.nombre || '';
-
+    return this.razas.find(
+      raza => raza.id === Number(id)
+    )?.nombre || '';
   }
 
-
+  // ==========================================================
+  // NOMBRE DEL TUTOR
+  // ==========================================================
 
   tutorLabel(m: Mascota): string {
 
-    const anyM: any = m;
+    const mascota: any = m;
 
-    const n = `${anyM.tutor_nombres || ''} ${anyM.tutor_apellidos || ''}`.trim();
+    const nombre =
+      `${mascota.tutor_nombres || ''} ${mascota.tutor_apellidos || ''}`.trim();
 
-    return n || anyM.tutor_email || '-';
-
+    return nombre || mascota.tutor_email || '-';
   }
 
-
+  // ==========================================================
+  // MOSTRAR EDAD
+  // ==========================================================
 
   edadLabel(m: Mascota): string {
 
-    if (m.edad_meses == null) return '-';
+    if (m.edad_meses == null) {
+      return '-';
+    }
 
-    if (m.edad_meses >= 12) return `${Math.round(m.edad_meses / 12)} año(s)`;
+    if (m.edad_meses >= 12) {
+      return `${Math.round(m.edad_meses / 12)} año(s)`;
+    }
 
     return `${m.edad_meses} mes(es)`;
-
   }
-
-
 
   edadUIValue(): string {
 
     const raw = this.form.getRawValue();
 
-    const v = raw.edad_valor;
+    const valor = raw.edad_valor;
+    const unidad = raw.edad_unidad;
 
-    const u = raw.edad_unidad;
+    if (valor == null || valor === '') {
+      return '-';
+    }
 
-    if (v == null || v === '') return '-';
-
-    return `${v} ${u === 'ANIOS' ? 'año(s)' : 'mes(es)'}`;
-
+    return `${valor} ${
+      unidad === 'ANIOS' ? 'año(s)' : 'mes(es)'
+    }`;
   }
 
-
+  // ==========================================================
+  // FECHA LOCAL
+  // ==========================================================
 
   private getTodayLocalISO(): string {
 
     const now = new Date();
 
-    const tzOffsetMs = now.getTimezoneOffset() * 60000;
+    const tzOffsetMs =
+      now.getTimezoneOffset() * 60000;
 
-    const local = new Date(now.getTime() - tzOffsetMs);
+    const local = new Date(
+      now.getTime() - tzOffsetMs
+    );
 
     return local.toISOString().slice(0, 10);
-
   }
 
-
-
-  // ================= PERMISOS =================
+  // ==========================================================
+  // PERMISOS
+  // ==========================================================
 
   canEdit(_row: Mascota): boolean {
-
     return this.isAdminUser;
-
   }
 
   canDelete(_row: Mascota): boolean {
-
     return this.isAdminUser;
-
   }
 
+  // ==========================================================
+  // NAVEGACIÓN DEL FORMULARIO
+  // ==========================================================
 
-
-  // ================= STEPS =================
-
-  goStep(i: number): void {
-
-    this.activeStepIndex = i;
-
+  goStep(index: number): void {
+    this.activeStepIndex = index;
   }
 
   prevStep(): void {
 
-    if (this.activeStepIndex > 0) this.activeStepIndex--;
-
+    if (this.activeStepIndex > 0) {
+      this.activeStepIndex--;
+    }
   }
 
   nextStep(): void {
 
-    if (this.activeStepIndex < this.stepItems.length - 1) this.activeStepIndex++;
-
+    if (
+      this.activeStepIndex <
+      this.stepItems.length - 1
+    ) {
+      this.activeStepIndex++;
+    }
   }
 
-
-
-  // ================= CRUD =================
+  // ==========================================================
+  // REGISTRAR NUEVA MASCOTA
+  // ==========================================================
 
   openNew(): void {
 
-    if (!this.canCreate) return;
+    if (!this.canCreate) {
+      return;
+    }
 
-
-
+    // Nueva mascota: todavía no existe ID
     this.editingId = null;
 
     this.activeStepIndex = 0;
-
     this.saving = false;
 
-
-
     this.tutorSeleccionado = null;
-
     this.tutoresFiltrados = [...this.tutores];
 
-
-
     this.form.reset({
-
       nombre: '',
-
       sexo: 'M',
-
       estado: 'DISPONIBLE',
-
       fecha_registro: this.getTodayLocalISO(),
-
       edad_valor: null,
-
       edad_unidad: 'MESES',
-
       especie_id: null,
-
       raza_id: null,
-
       perfil_tutor_assign_id: null,
-
       ubicacion: '',
-
       color: '',
-
       tamano_cm: null,
-
-      descripcion: '',
-
+      descripcion: ''
     });
 
-
-
     this.dialogVisible = true;
-
   }
 
-
+  // ==========================================================
+  // EDITAR MASCOTA
+  // ==========================================================
 
   edit(row: Mascota): void {
 
-    if (!this.canEdit(row)) return;
+    if (!this.canEdit(row)) {
+      return;
+    }
 
+    // Validar identificador
+    if (
+      row.id == null ||
+      !Number.isInteger(Number(row.id)) ||
+      Number(row.id) <= 0
+    ) {
+      this.toastError(
+        'Error',
+        'La mascota no tiene un ID válido.'
+      );
+      return;
+    }
 
-
-    this.editingId = row.id ?? null;
+    // Guardar ID real
+    this.editingId = Number(row.id);
 
     this.activeStepIndex = 0;
-
     this.saving = false;
 
-
-
-    const anyRow: any = row;
-
-
+    const mascota: any = row;
 
     let edad_valor: number | null = null;
-
-    let edad_unidad: EdadUnidad = 'MESES';
+    let edad_unidad: EdadUnidad = 'MESES' as EdadUnidad;
 
     if (row.edad_meses != null) {
 
       if (row.edad_meses >= 12) {
 
-        edad_unidad = 'ANIOS';
+        edad_unidad = 'ANIOS' as EdadUnidad;
 
-        edad_valor = Math.round(row.edad_meses / 12);
+        edad_valor = Math.round(
+          row.edad_meses / 12
+        );
 
       } else {
 
-        edad_unidad = 'MESES';
-
+        edad_unidad = 'MESES' as EdadUnidad;
         edad_valor = row.edad_meses;
-
       }
-
     }
 
-
-
-    const tutorId = anyRow.perfil_tutor_id ?? anyRow.perfil_tutor_assign_id ?? null;
-
-
+    const tutorId =
+      mascota.perfil_tutor_id ??
+      mascota.perfil_tutor_assign_id ??
+      null;
 
     this.form.patchValue({
-
       nombre: row.nombre,
-
       sexo: row.sexo,
-
       estado: row.estado,
-
       fecha_registro: row.fecha_registro,
-
-      edad_valor,
-
-      edad_unidad,
-
-      especie_id: anyRow.especie_id ?? null,
-
-      raza_id: anyRow.raza_id ?? null,
-
+      edad_valor: edad_valor,
+      edad_unidad: edad_unidad,
+      especie_id: mascota.especie_id ?? null,
+      raza_id: mascota.raza_id ?? null,
       perfil_tutor_assign_id: tutorId,
-
       ubicacion: row.ubicacion || '',
-
       color: row.color || '',
-
       tamano_cm: row.tamano_cm ?? null,
-
-      descripcion: row.descripcion || '',
-
+      descripcion: row.descripcion || ''
     });
 
-
-
-    this.tutorSeleccionado = tutorId
-
-      ? this.tutores.find((t) => t.id === Number(tutorId)) || null
-
-      : null;
-
-
+    this.tutorSeleccionado =
+      tutorId != null
+        ? this.tutores.find(
+            tutor => tutor.id === Number(tutorId)
+          ) || null
+        : null;
 
     this.dialogVisible = true;
-
   }
 
-
+  // ==========================================================
+  // CERRAR FORMULARIO
+  // ==========================================================
 
   closeDialog(): void {
 
-    if (this.saving) return;
+    if (this.saving) {
+      return;
+    }
 
     this.dialogVisible = false;
-
   }
 
-
+  // ==========================================================
+  // GUARDAR / ACTUALIZAR MASCOTA
+  // ==========================================================
 
   save(): void {
 
-    if (!this.isAdminUser) return;
-
-
+    if (!this.isAdminUser || this.saving) {
+      return;
+    }
 
     this.form.markAllAsTouched();
 
     if (this.form.invalid) {
-
       this.toastWarn('Revisa los campos obligatorios.');
-
       return;
-
     }
-
-
 
     const raw = this.form.getRawValue();
 
-
-
     let edad_meses: number | null = null;
 
-    if (raw.edad_valor != null && raw.edad_valor !== '') {
+    if (
+      raw.edad_valor != null &&
+      raw.edad_valor !== ''
+    ) {
 
-      const v = Number(raw.edad_valor);
+      const valor = Number(raw.edad_valor);
 
-      edad_meses = raw.edad_unidad === 'ANIOS' ? Math.round(v * 12) : Math.round(v);
-
+      edad_meses =
+        raw.edad_unidad === 'ANIOS'
+          ? Math.round(valor * 12)
+          : Math.round(valor);
     }
 
-
-
     const payload: any = {
-
       nombre: raw.nombre,
-
       sexo: raw.sexo,
-
       estado: raw.estado,
-
       fecha_registro: raw.fecha_registro,
-
       especie_id: raw.especie_id,
-
       raza_id: raw.raza_id,
+      edad_meses: edad_meses,
+      perfil_tutor_assign_id:
+        raw.perfil_tutor_assign_id,
 
-      edad_meses,
+      ubicacion: raw.ubicacion?.trim()
+        ? raw.ubicacion.trim()
+        : null,
 
-      perfil_tutor_assign_id: raw.perfil_tutor_assign_id,
+      color: raw.color?.trim()
+        ? raw.color.trim()
+        : null,
 
-      ubicacion: raw.ubicacion?.trim() ? raw.ubicacion.trim() : null,
+      tamano_cm:
+        raw.tamano_cm != null &&
+        raw.tamano_cm !== ''
+          ? Number(raw.tamano_cm)
+          : null,
 
-      color: raw.color?.trim() ? raw.color.trim() : null,
-
-      tamano_cm: raw.tamano_cm != null && raw.tamano_cm !== '' ? Number(raw.tamano_cm) : null,
-
-      descripcion: raw.descripcion?.trim() ? raw.descripcion.trim() : null,
-
+      descripcion: raw.descripcion?.trim()
+        ? raw.descripcion.trim()
+        : null
     };
-
-
 
     this.saving = true;
 
+    // ========================================================
+    // EDITAR REGISTRO EXISTENTE
+    // ========================================================
 
+    if (this.editingId !== null) {
 
-    if (this.editingId) {
+      const id = this.editingId;
 
-      this.http.patch(`${this.baseMascotas}${this.editingId}/`, payload).subscribe({
+      this.http.patch(
+        `${this.baseMascotas}${id}/`,
+        payload
+      )
+      .pipe(
+        finalize(() => {
+          this.saving = false;
+        })
+      )
+      .subscribe({
 
         next: () => {
 
@@ -838,66 +914,95 @@ private basePerfilesTutor = 'https://snoutyweb.onrender.com/api/perfiles-tutor/'
 
           this.loadMascotas();
 
-          this.toastSuccess('Actualizada', 'Cambios guardados.');
-
+          this.toastSuccess(
+            'Actualizada',
+            `Mascota ID ${id} actualizada correctamente.`
+          );
         },
 
         error: (err) => {
 
-          console.error(err);
+          console.error(
+            'Error actualizando mascota:',
+            err
+          );
 
-          this.toastError('Error', 'No se pudo actualizar.');
-
-        },
-
-        complete: () => (this.saving = false),
-
+          this.toastError(
+            'Error',
+            'No se pudo actualizar la mascota.'
+          );
+        }
       });
 
     } else {
 
-      this.http.post(this.baseMascotas, payload).subscribe({
+      // ======================================================
+      // CREAR NUEVA MASCOTA
+      // ======================================================
 
-        next: () => {
+      this.http.post<Mascota>(
+        this.baseMascotas,
+        payload
+      )
+      .pipe(
+        finalize(() => {
+          this.saving = false;
+        })
+      )
+      .subscribe({
+
+        next: (mascotaCreada: Mascota) => {
 
           this.dialogVisible = false;
 
           this.loadMascotas();
 
-          this.toastSuccess('Registrada', 'Mascota guardada.');
+          const id = mascotaCreada.id;
 
+          this.toastSuccess(
+            'Registrada',
+            id != null
+              ? `Mascota registrada con ID ${id}.`
+              : 'Mascota registrada correctamente.'
+          );
         },
 
         error: (err) => {
 
-          console.error(err);
+          console.error(
+            'Error registrando mascota:',
+            err
+          );
 
-          this.toastError('Error', 'No se pudo guardar.');
-
-        },
-
-        complete: () => (this.saving = false),
-
+          this.toastError(
+            'Error',
+            'No se pudo registrar la mascota.'
+          );
+        }
       });
-
     }
-
   }
 
-
-
-  // ================= ELIMINAR =================
+  // ==========================================================
+  // ABRIR CONFIRMACIÓN DE ELIMINACIÓN
+  // ==========================================================
 
   openDeleteConfirm(row: Mascota): void {
 
-    if (!this.canDelete(row)) return;
-
-    if (!row?.id) {
-
-      this.toastError('Error', 'No se encontró el ID para eliminar.');
-
+    if (!this.canDelete(row)) {
       return;
+    }
 
+    if (
+      row.id == null ||
+      !Number.isInteger(Number(row.id)) ||
+      Number(row.id) <= 0
+    ) {
+      this.toastError(
+        'Error',
+        'No se encontró el ID de la mascota.'
+      );
+      return;
     }
 
     this.mascotaToDelete = row;
@@ -905,135 +1010,190 @@ private basePerfilesTutor = 'https://snoutyweb.onrender.com/api/perfiles-tutor/'
     this.deleteError = '';
 
     this.confirmVisible = true;
-
   }
 
-
+  // ==========================================================
+  // CANCELAR ELIMINACIÓN
+  // ==========================================================
 
   cancelDelete(): void {
 
-    if (this.saving) return;
+    if (this.saving) {
+      return;
+    }
 
     this.confirmVisible = false;
-
     this.mascotaToDelete = null;
-
     this.deleteError = '';
-
   }
 
-
+  // ==========================================================
+  // CONFIRMAR ELIMINACIÓN
+  // ==========================================================
 
   confirmDelete(): void {
 
+    if (this.saving) {
+      return;
+    }
+
     const id = this.mascotaToDelete?.id;
 
-    if (!id) return;
+    if (id == null) {
+      return;
+    }
 
-
+    const nombre =
+      this.mascotaToDelete?.nombre || 'Mascota';
 
     this.saving = true;
 
-    this.http.delete(`${this.baseMascotas}${id}/`).subscribe({
+    this.http.delete(
+      `${this.baseMascotas}${id}/`
+    )
+    .pipe(
+      finalize(() => {
+        this.saving = false;
+      })
+    )
+    .subscribe({
 
       next: () => {
 
-        const nombre = this.mascotaToDelete?.nombre || 'Mascota';
-
         this.confirmVisible = false;
-
         this.mascotaToDelete = null;
-
         this.deleteError = '';
 
         this.loadMascotas();
 
-        this.toastSuccess('Eliminada', `"${nombre}" fue eliminada.`);
-
+        this.toastSuccess(
+          'Eliminada',
+          `"${nombre}" (ID ${id}) fue eliminada.`
+        );
       },
 
       error: (err) => {
 
-        console.error(err);
+        console.error(
+          'Error eliminando mascota:',
+          err
+        );
 
-        this.deleteError = 'No se pudo eliminar. Verifica permisos / backend.';
+        this.deleteError =
+          'No se pudo eliminar. Verifica permisos o backend.';
 
-        this.toastError('Error', this.deleteError);
-
-      },
-
-      complete: () => (this.saving = false),
-
+        this.toastError(
+          'Error',
+          this.deleteError
+        );
+      }
     });
-
   }
 
-
-
-  // ================= VALIDACIÓN =================
+  // ==========================================================
+  // VALIDACIÓN DE CAMPOS
+  // ==========================================================
 
   isInvalid(name: string): boolean {
 
-    const c = this.form.get(name);
+    const control = this.form.get(name);
 
-    return !!c && c.invalid && (c.touched || c.dirty);
-
+    return !!control &&
+      control.invalid &&
+      (control.touched || control.dirty);
   }
-
-
 
   errorText(name: string): string {
 
-    const c = this.form.get(name);
+    const control = this.form.get(name);
 
-    if (!c) return '';
+    if (!control) {
+      return '';
+    }
 
-    if (c.errors?.['required']) return 'Campo obligatorio.';
+    if (control.errors?.['required']) {
+      return 'Campo obligatorio.';
+    }
 
     return 'Campo inválido.';
-
   }
 
-
+  // ==========================================================
+  // VALIDACIÓN DE EDAD - CORREGIDA
+  // ==========================================================
 
   private edadConsistenteValidator(): ValidatorFn {
 
-    return (group: AbstractControl): ValidationErrors | null => {
+    return (
+      group: AbstractControl
+    ): ValidationErrors | null => {
 
-      const edadValor = group.get('edad_valor')?.value;
+      const edadValor =
+        group.get('edad_valor')?.value;
 
-      const edadUnidad = group.get('edad_unidad')?.value as EdadUnidad | null;
+      const edadUnidad: EdadUnidad | null =
+        group.get('edad_unidad')?.value ?? null;
 
-      if (edadValor == null || edadValor === '') return null;
+      if (
+        edadValor == null ||
+        edadValor === ''
+      ) {
+        return null;
+      }
 
-      const v = Number(edadValor);
+      const valor = Number(edadValor);
 
-      if (Number.isNaN(v) || v < 0 || !edadUnidad) return { edadInconsistente: true };
+      if (
+        !Number.isFinite(valor) ||
+        valor < 0 ||
+        !edadUnidad
+      ) {
+        return {
+          edadInconsistente: true
+        };
+      }
 
       return null;
-
     };
-
   }
 
+  // ==========================================================
+  // MENSAJES
+  // ==========================================================
 
+  private toastSuccess(
+    summary: string,
+    detail: string
+  ): void {
 
-  private toastSuccess(summary: string, detail: string): void {
-
-    this.messageService.add({ severity: 'success', summary, detail, life: 3000 });
-
+    this.messageService.add({
+      severity: 'success',
+      summary: summary,
+      detail: detail,
+      life: 3000
+    });
   }
 
   private toastWarn(detail: string): void {
 
-    this.messageService.add({ severity: 'warn', summary: 'Atención', detail, life: 3500 });
-
+    this.messageService.add({
+      severity: 'warn',
+      summary: 'Atención',
+      detail: detail,
+      life: 3500
+    });
   }
 
-  private toastError(summary: string, detail: string): void {
+  private toastError(
+    summary: string,
+    detail: string
+  ): void {
 
-    this.messageService.add({ severity: 'error', summary, detail, life: 4500 });
-
+    this.messageService.add({
+      severity: 'error',
+      summary: summary,
+      detail: detail,
+      life: 4500
+    });
   }
-
 }
