@@ -128,32 +128,11 @@ WSGI_APPLICATION = "snouty.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-
-        "NAME": os.getenv(
-            "DB_NAME",
-            "bdsnouty"
-        ),
-
-        "USER": os.getenv(
-            "DB_USER",
-            "root"
-        ),
-
-        "PASSWORD": os.getenv(
-            "DB_PASSWORD",
-            "root"
-        ),
-
-        "HOST": os.getenv(
-            "DB_HOST",
-            "127.0.0.1"
-        ),
-
-        "PORT": os.getenv(
-            "DB_PORT",
-            "3306"
-        ),
-
+        "NAME": os.environ["DB_NAME"],
+        "USER": os.environ["DB_USER"],
+        "PASSWORD": os.environ["DB_PASSWORD"],
+        "HOST": os.environ["DB_HOST"],
+        "PORT": os.environ["DB_PORT"],
         "OPTIONS": {
             "charset": "utf8mb4",
         },
@@ -283,7 +262,7 @@ if (
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
-    "https://snouty-frontend.onrender.com/",
+    "https://snouty-frontend.onrender.com",
 ]
 
 # Cuando Angular esté publicado,
