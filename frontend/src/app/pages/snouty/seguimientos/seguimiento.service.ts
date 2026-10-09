@@ -1,4 +1,4 @@
-// src/app/pages/snouty/seguimiento/seguimiento.service.ts
+
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
@@ -11,97 +11,236 @@ import {
   CreateEvidenciaJsonPayload,
 } from './seguimiento.models';
 
+// ============================================================
+// API DJANGO - RENDER
+// ============================================================
+
 const API = 'https://snoutyweb.onrender.com/api';
 
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root'
+})
 export class SeguimientoService {
-  constructor(private http: HttpClient) {}
 
-  // =========================================================
-  // ADMIN (READ ONLY)
-  // =========================================================
+  constructor(
+    private http: HttpClient
+  ) {}
 
-  /** GET /api/admin/solicitudes-adopcion/ */
+  // ============================================================
+  // ADMIN - SOLO LECTURA
+  // ============================================================
+
+  /**
+   * Obtener solicitudes de adopción.
+   */
   getAdminSolicitudes(): Observable<SolicitudAdopcionLite[]> {
-    return this.http.get<SolicitudAdopcionLite[]>(`${API}/admin/solicitudes-adopcion/`);
+
+    return this.http.get<SolicitudAdopcionLite[]>(
+      `${API}/admin/solicitudes-adopcion/`
+    );
   }
 
-  /** GET /api/admin/seguimiento-config/ */
+  /**
+   * Obtener configuraciones de seguimiento.
+   */
   getAdminConfigs(): Observable<SeguimientoConfig[]> {
-    return this.http.get<SeguimientoConfig[]>(`${API}/admin/seguimiento-config/`);
+
+    return this.http.get<SeguimientoConfig[]>(
+      `${API}/admin/seguimiento-config/`
+    );
   }
 
-  /** GET /api/admin/seguimientos/evidencias/ */
+  /**
+   * Obtener evidencias para administración.
+   */
   getAdminEvidencias(): Observable<SeguimientoEvidencia[]> {
-    return this.http.get<SeguimientoEvidencia[]>(`${API}/admin/seguimientos/evidencias/`);
+
+    return this.http.get<SeguimientoEvidencia[]>(
+      `${API}/admin/seguimientos/evidencias/`
+    );
   }
 
-  // =========================================================
+  // ============================================================
   // TUTOR
-  // =========================================================
+  // ============================================================
 
-  /** GET /api/tutor/seguimientos/solicitudes/ */
+  /**
+   * Obtener solicitudes aprobadas del tutor.
+   */
   getTutorSolicitudesAprobadas(): Observable<SolicitudAdopcionLite[]> {
-    return this.http.get<SolicitudAdopcionLite[]>(`${API}/tutor/seguimientos/solicitudes/`);
+
+    return this.http.get<SolicitudAdopcionLite[]>(
+      `${API}/tutor/seguimientos/solicitudes/`
+    );
   }
 
-  /** GET /api/seguimiento-config/ (solo las del tutor) */
+  /**
+   * Obtener configuraciones del tutor.
+   */
   getTutorConfigs(): Observable<SeguimientoConfig[]> {
-    return this.http.get<SeguimientoConfig[]>(`${API}/seguimiento-config/`);
+
+    return this.http.get<SeguimientoConfig[]>(
+      `${API}/seguimiento-config/`
+    );
   }
 
-  /** POST /api/seguimiento-config/ */
-  createConfig(payload: CreateSeguimientoConfigPayload): Observable<SeguimientoConfig> {
-    return this.http.post<SeguimientoConfig>(`${API}/seguimiento-config/`, payload);
+  /**
+   * Crear configuración de seguimiento.
+   */
+  createConfig(
+    payload: CreateSeguimientoConfigPayload
+  ): Observable<SeguimientoConfig> {
+
+    return this.http.post<SeguimientoConfig>(
+      `${API}/seguimiento-config/`,
+      payload
+    );
   }
 
-  /** POST /api/seguimiento-config/:id/iniciar/ */
-  iniciarConfig(id: number): Observable<any> {
-    return this.http.post<any>(`${API}/seguimiento-config/${id}/iniciar/`, {});
+  /**
+   * Iniciar seguimiento.
+   */
+  iniciarConfig(
+    id: number
+  ): Observable<any> {
+
+    return this.http.post<any>(
+      `${API}/seguimiento-config/${id}/iniciar/`,
+      {}
+    );
   }
 
-  /** POST /api/seguimiento-config/:id/recordatorio-manual/ */
-  enviarRecordatorioManual(id: number): Observable<any> {
-    return this.http.post<any>(`${API}/seguimiento-config/${id}/recordatorio-manual/`, {});
+  /**
+   * Enviar recordatorio manual al adoptante.
+   */
+  enviarRecordatorioManual(
+    id: number
+  ): Observable<any> {
+
+    return this.http.post<any>(
+      `${API}/seguimiento-config/${id}/recordatorio-manual/`,
+      {}
+    );
   }
 
-  // =========================================================
+  // ============================================================
   // ADOPTANTE
-  // =========================================================
+  // ============================================================
 
-  /** GET /api/adoptante/seguimientos/configs/ */
+  /**
+   * Obtener seguimientos iniciados del adoptante.
+   */
   getAdoptanteConfigsIniciadas(): Observable<SeguimientoConfig[]> {
-    return this.http.get<SeguimientoConfig[]>(`${API}/adoptante/seguimientos/configs/`);
+
+    return this.http.get<SeguimientoConfig[]>(
+      `${API}/adoptante/seguimientos/configs/`
+    );
   }
 
-  // =========================================================
-  // EVIDENCIAS (ADOPTANTE)
-  // =========================================================
+  // ============================================================
+  // EVIDENCIAS - ADOPTANTE
+  // ============================================================
 
-  /** GET /api/seguimientos/evidencias/ (las del adoptante) */
+  /**
+   * Obtener evidencias registradas.
+   */
   listEvidencias(): Observable<SeguimientoEvidencia[]> {
-    return this.http.get<SeguimientoEvidencia[]>(`${API}/seguimientos/evidencias/`);
+
+    return this.http.get<SeguimientoEvidencia[]>(
+      `${API}/seguimientos/evidencias/`
+    );
   }
 
-  /** POST /api/seguimientos/evidencias/ (JSON, si lo usas) */
-  createEvidenciaJson(payload: CreateEvidenciaJsonPayload): Observable<SeguimientoEvidencia> {
-    return this.http.post<SeguimientoEvidencia>(`${API}/seguimientos/evidencias/`, payload);
+  /**
+   * Crear evidencia mediante JSON.
+   *
+   * Utilizar cuando no se necesita adjuntar
+   * una imagen o archivo.
+   */
+  createEvidenciaJson(
+    payload: CreateEvidenciaJsonPayload
+  ): Observable<SeguimientoEvidencia> {
+
+    return this.http.post<SeguimientoEvidencia>(
+      `${API}/seguimientos/evidencias/`,
+      payload
+    );
   }
 
-  /** POST /api/seguimientos/evidencias/upload/ (multipart) */
+  // ============================================================
+  // SUBIR EVIDENCIA CON IMAGEN - CORREGIDO
+  // ============================================================
+
+  /**
+   * Registrar una evidencia con fotografía.
+   *
+   * Endpoint correcto:
+   * POST /api/seguimientos/evidencias/
+   *
+   * Campos esperados por Django:
+   * - solicitud
+   * - imagen
+   * - fecha (opcional)
+   * - obs (opcional)
+   */
   uploadEvidenciaMultipart(params: {
     solicitudId: number;
     file: File;
-    fecha?: string; // YYYY-MM-DD
+    fecha?: string;
     obs?: string;
   }): Observable<SeguimientoEvidencia> {
+
+    // ========================================================
+    // 1. PREPARAR FORMULARIO MULTIPART
+    // ========================================================
+
     const fd = new FormData();
-    fd.append('solicitud_id', String(params.solicitudId));
-    fd.append('file', params.file);
 
-    if (params.fecha) fd.append('fecha', params.fecha);
-    if (params.obs) fd.append('obs', params.obs);
+    // ID de solicitud de adopción.
+    fd.append(
+      'solicitud',
+      String(params.solicitudId)
+    );
 
-    return this.http.post<SeguimientoEvidencia>(`${API}/seguimientos/evidencias/upload/`, fd);
+    // Fotografía o archivo de evidencia.
+    fd.append(
+      'imagen',
+      params.file,
+      params.file.name
+    );
+
+    // ========================================================
+    // 2. FECHA OPCIONAL
+    // ========================================================
+
+    if (params.fecha) {
+
+      fd.append(
+        'fecha',
+        params.fecha
+      );
+    }
+
+    // ========================================================
+    // 3. OBSERVACIÓN OPCIONAL
+    // ========================================================
+
+    if (params.obs?.trim()) {
+
+      fd.append(
+        'obs',
+        params.obs.trim()
+      );
+    }
+
+    // ========================================================
+    // 4. ENVIAR EVIDENCIA AL BACKEND
+    // ========================================================
+
+    return this.http.post<SeguimientoEvidencia>(
+      `${API}/seguimientos/evidencias/`,
+      fd
+    );
   }
+
 }
