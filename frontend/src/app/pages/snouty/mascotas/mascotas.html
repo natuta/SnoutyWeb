@@ -2,7 +2,19 @@
 <p-toast></p-toast>
 
 <div class="p-3">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+
+  <!-- ====================================================== -->
+  <!-- ENCABEZADO -->
+  <!-- ====================================================== -->
+
+  <div
+    style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:12px;
+    ">
+
     <h2 style="margin:0;">Mascotas</h2>
 
     <button
@@ -13,16 +25,24 @@
       (click)="openNew()"
       [disabled]="!canCreate">
     </button>
+
   </div>
 
-  <!-- ================= TABLA DE MASCOTAS ================= -->
+
+  <!-- ====================================================== -->
+  <!-- TABLA DE MASCOTAS -->
+  <!-- ====================================================== -->
+
   <p-table
     [value]="mascotas"
     [paginator]="true"
     [rows]="10"
     [responsiveLayout]="'scroll'">
 
+    <!-- ENCABEZADOS -->
+
     <ng-template pTemplate="header">
+
       <tr>
         <th style="width:80px;">ID</th>
         <th>Nombre</th>
@@ -34,22 +54,48 @@
         <th>Tutor</th>
         <th style="width:160px;">Acciones</th>
       </tr>
+
     </ng-template>
 
+
+    <!-- FILAS -->
+
     <ng-template pTemplate="body" let-row>
+
       <tr>
+
         <td>
           <strong>{{ row.id }}</strong>
         </td>
+
         <td>{{ row.nombre }}</td>
-        <td>{{ nombreEspecie(row.especie_id) }}</td>
-        <td>{{ nombreRaza(row.raza_id) }}</td>
-        <td>{{ row.sexo === 'M' ? 'Macho' : 'Hembra' }}</td>
-        <td>{{ edadLabel(row) }}</td>
-        <td>{{ row.estado }}</td>
-        <td>{{ tutorLabel(row) }}</td>
+
+        <td>
+          {{ nombreEspecie(row.especie_id) }}
+        </td>
+
+        <td>
+          {{ nombreRaza(row.raza_id) }}
+        </td>
+
+        <td>
+          {{ row.sexo === 'M' ? 'Macho' : 'Hembra' }}
+        </td>
+
+        <td>
+          {{ edadLabel(row) }}
+        </td>
+
+        <td>
+          {{ row.estado }}
+        </td>
+
+        <td>
+          {{ tutorLabel(row) }}
+        </td>
 
         <td style="display:flex; gap:6px;">
+
           <button
             pButton
             type="button"
@@ -67,29 +113,44 @@
             (click)="openDeleteConfirm(row)"
             [disabled]="!canDelete(row)">
           </button>
+
         </td>
+
       </tr>
+
     </ng-template>
 
+
+    <!-- TABLA VACÍA -->
+
     <ng-template pTemplate="emptymessage">
+
       <tr>
         <td colspan="9">
           No hay mascotas registradas.
         </td>
       </tr>
+
     </ng-template>
 
   </p-table>
+
 </div>
 
 
-<!-- ================= DIALOG ================= -->
+<!-- ======================================================== -->
+<!-- FORMULARIO NUEVA MASCOTA / EDITAR MASCOTA -->
+<!-- ======================================================== -->
+
 <p-dialog
   [(visible)]="dialogVisible"
   [modal]="true"
   [draggable]="false"
   [dismissableMask]="true"
-  [style]="{ width: '1100px', 'max-width': '95vw' }"
+  [style]="{
+    width: '1100px',
+    'max-width': '95vw'
+  }"
   [contentStyle]="{
     'max-height': '80vh',
     overflow: 'auto',
@@ -97,9 +158,16 @@
   }"
   [header]="editingId !== null ? 'Editar mascota' : 'Nueva mascota'">
 
-  <form [formGroup]="form" style="width:100%;">
+  <form
+    [formGroup]="form"
+    style="width:100%;"
+    (ngSubmit)="save()">
 
-    <!-- ================= ID EN EDICIÓN ================= -->
+
+    <!-- ==================================================== -->
+    <!-- IDENTIFICADOR DE LA MASCOTA -->
+    <!-- ==================================================== -->
+
     <div
       *ngIf="editingId !== null"
       style="
@@ -123,37 +191,105 @@
     </div>
 
 
-    <!-- ================= STEPS ================= -->
+    <!-- ==================================================== -->
+    <!-- PASOS DEL FORMULARIO -->
+    <!-- ==================================================== -->
+
     <div style="margin-bottom:20px;">
+
       <p-steps
         [model]="stepItems"
         [(activeIndex)]="activeStepIndex"
         (activeIndexChange)="goStep($event)"
         [readonly]="false">
       </p-steps>
+
     </div>
 
 
-    <!-- ================= STEP 0: DATOS BÁSICOS ================= -->
+    <!-- ==================================================== -->
+    <!-- STEP 0: DATOS BÁSICOS -->
+    <!-- ==================================================== -->
+
     <div
       *ngIf="activeStepIndex === 0"
-      style="width:100%; display:flex; justify-content:flex-start;">
+      style="
+        width:100%;
+        display:flex;
+        justify-content:flex-start;
+      ">
 
-      <div style="width:100%; display:flex; flex-wrap:wrap; gap:40px;">
+      <div
+        style="
+          width:100%;
+          display:flex;
+          flex-wrap:wrap;
+          gap:40px;
+        ">
 
-        <!-- IZQUIERDA -->
+
+        <!-- ================================================= -->
+        <!-- COLUMNA IZQUIERDA -->
+        <!-- ================================================= -->
+
         <div style="flex:1; min-width:280px;">
 
-          <div style="margin-bottom:16px;">
-            <label>Nombre *</label>
-            <input
-              pInputText
-              formControlName="nombre"
-              style="width:100%;" />
-          </div>
+
+          <!-- =============================================== -->
+          <!-- NOMBRE DE LA MASCOTA -->
+          <!-- VALIDACIÓN DE NOMBRES DUPLICADOS -->
+          <!-- =============================================== -->
 
           <div style="margin-bottom:16px;">
+
+            <label
+              for="nombreMascota"
+              style="
+                display:block;
+                margin-bottom:6px;
+              ">
+              Nombre de la mascota *
+            </label>
+
+            <input
+              id="nombreMascota"
+              pInputText
+              type="text"
+              formControlName="nombre"
+              placeholder="Ingrese el nombre de la mascota"
+              maxlength="100"
+              [class.ng-invalid]="isInvalid('nombre')"
+              [class.ng-dirty]="isInvalid('nombre')"
+              style="width:100%;" />
+
+            <!-- MENSAJE DE ERROR -->
+
+            <small
+              *ngIf="isInvalid('nombre')"
+              style="
+                color:#dc2626;
+                display:block;
+                margin-top:6px;
+                font-size:13px;
+              ">
+
+              <i class="pi pi-exclamation-circle"></i>
+
+              {{ errorText('nombre') }}
+
+            </small>
+
+          </div>
+
+
+          <!-- =============================================== -->
+          <!-- ESPECIE -->
+          <!-- =============================================== -->
+
+          <div style="margin-bottom:16px;">
+
             <label>Especie *</label>
+
             <select
               formControlName="especie_id"
               class="p-inputtext"
@@ -170,10 +306,18 @@
               </option>
 
             </select>
+
           </div>
 
+
+          <!-- =============================================== -->
+          <!-- RAZA -->
+          <!-- =============================================== -->
+
           <div style="margin-bottom:16px;">
+
             <label>Raza</label>
+
             <select
               formControlName="raza_id"
               class="p-inputtext"
@@ -190,9 +334,16 @@
               </option>
 
             </select>
+
           </div>
 
+
+          <!-- =============================================== -->
+          <!-- EDAD -->
+          <!-- =============================================== -->
+
           <div>
+
             <label>Edad</label>
 
             <div style="display:flex; gap:10px;">
@@ -201,6 +352,7 @@
                 type="number"
                 class="p-inputtext"
                 formControlName="edad_valor"
+                min="0"
                 style="flex:1; min-width:0;" />
 
               <select
@@ -215,26 +367,46 @@
                 </option>
 
               </select>
+
             </div>
+
           </div>
 
         </div>
 
 
-        <!-- DERECHA -->
+        <!-- ================================================= -->
+        <!-- COLUMNA DERECHA -->
+        <!-- ================================================= -->
+
         <div style="flex:1; min-width:280px;">
 
+
+          <!-- =============================================== -->
+          <!-- FECHA DE REGISTRO -->
+          <!-- =============================================== -->
+
           <div style="margin-bottom:16px;">
+
             <label>Fecha registro *</label>
+
             <input
               type="date"
               class="p-inputtext"
               formControlName="fecha_registro"
               style="width:100%;" />
+
           </div>
 
+
+          <!-- =============================================== -->
+          <!-- ESTADO -->
+          <!-- =============================================== -->
+
           <div style="margin-bottom:16px;">
+
             <label>Estado *</label>
+
             <select
               class="p-inputtext"
               formControlName="estado"
@@ -247,10 +419,18 @@
               </option>
 
             </select>
+
           </div>
 
+
+          <!-- =============================================== -->
+          <!-- SEXO -->
+          <!-- =============================================== -->
+
           <div style="margin-bottom:16px;">
+
             <label>Sexo *</label>
+
             <select
               class="p-inputtext"
               formControlName="sexo"
@@ -263,14 +443,22 @@
               </option>
 
             </select>
+
           </div>
 
 
-          <!-- ================= TUTOR ================= -->
+          <!-- =============================================== -->
+          <!-- TUTOR -->
+          <!-- =============================================== -->
+
           <div *ngIf="isAdminUser">
 
             <div
-              style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              style="
+                display:flex;
+                justify-content:space-between;
+                margin-bottom:6px;
+              ">
 
               <label>Tutor *</label>
 
@@ -294,6 +482,7 @@
             </p-autoComplete>
 
             <div style="text-align:right; margin-top:6px;">
+
               <button
                 pButton
                 type="button"
@@ -301,6 +490,7 @@
                 class="p-button-text"
                 (click)="clearTutor()">
               </button>
+
             </div>
 
           </div>
@@ -308,46 +498,74 @@
         </div>
 
       </div>
+
     </div>
 
 
-    <!-- ================= STEP 1: CARACTERÍSTICAS ================= -->
+    <!-- ==================================================== -->
+    <!-- STEP 1: CARACTERÍSTICAS -->
+    <!-- ==================================================== -->
+
     <div *ngIf="activeStepIndex === 1">
 
+
+      <!-- COLOR -->
+
       <div style="margin-bottom:16px;">
+
         <label>Color</label>
+
         <input
           pInputText
           formControlName="color"
           style="width:100%;" />
+
       </div>
 
+
+      <!-- TAMAÑO -->
+
       <div style="margin-bottom:16px;">
+
         <label>Tamaño (cm)</label>
+
         <input
           type="number"
           class="p-inputtext"
           formControlName="tamano_cm"
+          min="0"
+          max="300"
           style="width:100%;" />
+
       </div>
 
+
+      <!-- DESCRIPCIÓN -->
+
       <div>
+
         <label>Descripción</label>
+
         <textarea
           rows="4"
           formControlName="descripcion"
           class="p-inputtext"
           style="width:100%;">
         </textarea>
+
       </div>
 
     </div>
 
 
-    <!-- ================= STEP 2: UBICACIÓN ================= -->
+    <!-- ==================================================== -->
+    <!-- STEP 2: UBICACIÓN -->
+    <!-- ==================================================== -->
+
     <div *ngIf="activeStepIndex === 2">
 
       <label>Ubicación</label>
+
       <input
         pInputText
         formControlName="ubicacion"
@@ -356,75 +574,133 @@
     </div>
 
 
-    <!-- ================= STEP 3: CONFIRMAR ================= -->
+    <!-- ==================================================== -->
+    <!-- STEP 3: CONFIRMAR DATOS -->
+    <!-- ==================================================== -->
+
     <div *ngIf="activeStepIndex === 3">
 
       <h3>Confirmar datos de la mascota</h3>
 
+
+      <!-- ID -->
+
       <p *ngIf="editingId !== null">
+
         <b>ID de mascota:</b>
         {{ editingId }}
+
       </p>
 
       <p *ngIf="editingId === null">
+
         <b>ID de mascota:</b>
         Se asignará automáticamente al guardar.
+
       </p>
+
+
+      <!-- NOMBRE -->
 
       <p>
         <b>Nombre:</b>
         {{ form.get('nombre')?.value }}
       </p>
 
+
+      <!-- FECHA -->
+
       <p>
         <b>Fecha:</b>
         {{ form.get('fecha_registro')?.value }}
       </p>
+
+
+      <!-- ESTADO -->
 
       <p>
         <b>Estado:</b>
         {{ form.get('estado')?.value }}
       </p>
 
+
+      <!-- SEXO -->
+
       <p>
         <b>Sexo:</b>
-        {{ form.get('sexo')?.value === 'M' ? 'Macho' : 'Hembra' }}
+        {{
+          form.get('sexo')?.value === 'M'
+            ? 'Macho'
+            : 'Hembra'
+        }}
       </p>
+
+
+      <!-- ESPECIE -->
 
       <p>
         <b>Especie:</b>
-        {{ nombreEspecie(form.get('especie_id')?.value) }}
+        {{
+          nombreEspecie(
+            form.get('especie_id')?.value
+          )
+        }}
       </p>
+
+
+      <!-- RAZA -->
 
       <p>
         <b>Raza:</b>
-        {{ nombreRaza(form.get('raza_id')?.value) || 'Sin especificar' }}
+        {{
+          nombreRaza(
+            form.get('raza_id')?.value
+          ) || 'Sin especificar'
+        }}
       </p>
+
+
+      <!-- EDAD -->
 
       <p>
         <b>Edad:</b>
         {{ edadUIValue() }}
       </p>
 
+
+      <!-- TUTOR -->
+
       <p>
         <b>Tutor:</b>
         {{ getTutorSeleccionadoLabel() }}
       </p>
+
+
+      <!-- COLOR -->
 
       <p>
         <b>Color:</b>
         {{ form.get('color')?.value || 'Sin especificar' }}
       </p>
 
+
+      <!-- TAMAÑO -->
+
       <p>
         <b>Tamaño:</b>
         {{ form.get('tamano_cm')?.value ?? '-' }} cm
       </p>
 
+
+      <!-- UBICACIÓN -->
+
       <p>
         <b>Ubicación:</b>
         {{ form.get('ubicacion')?.value || 'Sin especificar' }}
       </p>
+
+
+      <!-- DESCRIPCIÓN -->
 
       <p>
         <b>Descripción:</b>
@@ -434,9 +710,21 @@
     </div>
 
 
-    <!-- ================= BOTONES ================= -->
+    <!-- ==================================================== -->
+    <!-- BOTONES DE NAVEGACIÓN Y GUARDADO -->
+    <!-- ==================================================== -->
+
     <div
-      style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-top:30px;">
+      style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:10px;
+        margin-top:30px;
+      ">
+
+      <!-- ATRÁS -->
 
       <button
         pButton
@@ -451,6 +739,8 @@
 
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
 
+        <!-- SIGUIENTE -->
+
         <button
           pButton
           type="button"
@@ -461,6 +751,9 @@
           [disabled]="activeStepIndex === 3">
         </button>
 
+
+        <!-- GUARDAR -->
+
         <button
           pButton
           type="button"
@@ -469,6 +762,9 @@
           (click)="save()"
           [disabled]="saving">
         </button>
+
+
+        <!-- CERRAR -->
 
         <button
           pButton
@@ -484,16 +780,23 @@
     </div>
 
   </form>
+
 </p-dialog>
 
 
-<!-- ================= CONFIRM DELETE ================= -->
+<!-- ======================================================== -->
+<!-- CONFIRMACIÓN DE ELIMINACIÓN -->
+<!-- ======================================================== -->
+
 <p-dialog
   [(visible)]="confirmVisible"
   [modal]="true"
   [draggable]="false"
   [closable]="false"
-  [style]="{ width: '500px', 'max-width': '95vw' }"
+  [style]="{
+    width: '500px',
+    'max-width': '95vw'
+  }"
   header="Confirmar eliminación">
 
   <ng-container *ngIf="mascotaToDelete as mascota">
@@ -510,14 +813,25 @@
 
   </ng-container>
 
+
+  <!-- MENSAJE DE ERROR AL ELIMINAR -->
+
   <p
     *ngIf="deleteError"
     style="color:#dc2626;">
     {{ deleteError }}
   </p>
 
+
+  <!-- BOTONES -->
+
   <div
-    style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+    style="
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:20px;
+    ">
 
     <button
       pButton

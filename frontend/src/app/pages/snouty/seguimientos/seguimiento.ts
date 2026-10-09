@@ -594,45 +594,132 @@ private API = 'https://snoutyweb.onrender.com/api';
     this.selectedFile = null;
   }
 
+ 
+  // ==========================================================
+  // ADOPTANTE - ENVIAR EVIDENCIA
+  // ==========================================================
+
   enviarEvidenciaAdoptante(): void {
+
+    // 1. Obtener solicitud seleccionada
     const sid = this.selectedAdoptanteSolicitud?.id ?? null;
+
     if (!sid) {
       this.err('No hay solicitud seleccionada.');
       return;
     }
+
+    // 2. Comprobar que exista un archivo
     if (!this.selectedFile) {
-      this.err('Selecciona un archivo.');
+      this.err('Selecciona una imagen como evidencia.');
       return;
     }
 
-    const v = this.uploadForm.getRawValue();
-    const fd = new FormData();
-    fd.append('solicitud_id', String(sid));
-    fd.append('file', this.selectedFile);
+    // 3. Comprobar que sea una imagen
+    if (!this.selectedFile.type.startsWith('image/')) {
+      this.err('El archivo seleccionado debe ser una imagen.');
+      return;
+    }
 
-    if (v.fecha) fd.append('fecha', v.fecha);
-    if (v.obs) fd.append('obs', v.obs);
+    // 4. Obtener datos del formulario
+    const valores = this.uploadForm.getRawValue();
+
+    // 5. Preparar FormData para Django
+    const formData = new FormData();
+
+    // Nombres correctos según SeguimientoSolicitudSerializer
+    formData.append('solicitud', String(sid));
+
+    formData.append(
+      'imagen',
+      this.selectedFile,
+      this.selectedFile.name
+    );
+
+    if (valores.fecha) {
+      formData.append('fecha', valores.fecha);
+    }
+
+    if (valores.obs) {
+      formData.append('obs', valores.obs.trim());
+    }
+
+    // 6. Enviar a la ruta de creación de evidencias
+    const url = `${this.API}/seguimientos/evidencias/`;
 
     this.startLoading();
-    this.http.post(`${this.API}/seguimientos/evidencias/upload/`, fd)
-      .pipe(finalize(() => this.stopLoading()))
-      .subscribe({
-        next: () => {
-          this.ok('Evidencia enviada. El tutor fue notificado por correo.');
-          this.uploadForm.patchValue({ fecha: '', obs: '' });
-          this.selectedFile = null;
-          this.loadEvidenciasAdoptante();
-        },
-        error: (e) => {
-          console.error('[Adoptante] upload evidencia error:', e);
-          const msg = e?.error?.detail
-            || e?.error?.fecha?.[0]
-            || e?.error?.solicitud?.[0]
-            || 'No se pudo enviar evidencia.';
-          this.err(msg);
-        },
-      });
+
+    this.http.post<SeguimientoEvidencia>(
+      url,
+      formData
+    )
+    .pipe(
+      finalize(() => this.stopLoading())
+    )
+    .subscribe({
+
+      next: (evidenciaCreada) => {
+
+        console.log(
+          '[Adoptante] Evidencia registrada:',
+          evidenciaCreada
+        );
+
+        this.ok('Evidencia registrada correctamente.');
+
+        // Limpiar formulario
+        this.uploadForm.patchValue({
+          fecha: '',
+          obs: ''
+        });
+
+        this.selectedFile = null;
+
+        // Actualizar listado
+        this.loadEvidenciasAdoptante();
+      },
+
+      error: (error) => {
+
+        console.error(
+          '[Adoptante] Error subiendo evidencia:',
+          error
+        );
+
+        const detalle = error?.error;
+
+        let mensaje = 'No se pudo enviar la evidencia.';
+
+        if (detalle?.detail) {
+          mensaje = detalle.detail;
+
+        } else if (detalle?.imagen) {
+          mensaje = Array.isArray(detalle.imagen)
+            ? detalle.imagen.join(' ')
+            : String(detalle.imagen);
+
+        } else if (detalle?.solicitud) {
+          mensaje = Array.isArray(detalle.solicitud)
+            ? detalle.solicitud.join(' ')
+            : String(detalle.solicitud);
+
+        } else if (detalle?.fecha) {
+          mensaje = Array.isArray(detalle.fecha)
+            ? detalle.fecha.join(' ')
+            : String(detalle.fecha);
+
+        } else if (detalle?.non_field_errors) {
+          mensaje = Array.isArray(detalle.non_field_errors)
+            ? detalle.non_field_errors.join(' ')
+            : String(detalle.non_field_errors);
+        }
+
+        this.err(mensaje);
+      }
+
+    });
   }
+
 
   adoptanteCfgPorSolicitud(solicitudId: number): SeguimientoConfig | null {
     return this.adoptanteConfigsIniciadas.find(c => c.solicitud === solicitudId) ?? null;
