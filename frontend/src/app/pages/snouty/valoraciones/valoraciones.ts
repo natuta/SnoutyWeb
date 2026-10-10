@@ -15,7 +15,7 @@ import { StepsModule } from 'primeng/steps';
 import { MessageService } from 'primeng/api';
 import { AuthService, UserRole } from '../../auth/services/auth.service';
 
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'https://snoutyweb.onrender.com/api';
 
 export interface UsuarioCalificable {
   id: number;
