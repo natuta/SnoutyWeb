@@ -907,10 +907,19 @@ class TutorSolicitudSeguimientoViewSet(viewsets.ReadOnlyModelViewSet):
     
 
 
+
 class SeguimientoConfigViewSet(viewsets.ModelViewSet):
     serializer_class = SeguimientoConfigSerializer
-    permission_classes = [permissions.IsAuthenticated, IsTutorOrAdminReadOnly]
+    permission_classes = [
+        permissions.IsAuthenticated,
+        IsTutorOrAdminReadOnly,
+    ]
 
+    # ============================================================
+    # CONSULTAR CONFIGURACIONES DE SEGUIMIENTO
+    # ADMIN: consulta todas
+    # TUTOR: consulta solamente las de sus mascotas
+    # ============================================================
     def get_queryset(self):
         qs = (
             SeguimientoConfig.objects.select_related(
@@ -926,54 +935,121 @@ class SeguimientoConfigViewSet(viewsets.ModelViewSet):
         if is_admin(self.request.user):
             return qs
 
-        perfil_tutor = self.request.user.perfil_tutor
-        return qs.filter(
-            solicitud__mascota__perfil_tutor=perfil_tutor,
+        if is_tutor(self.request.user):
+            return qs.filter(
+                solicitud__mascota__perfil_tutor=(
+                    self.request.user.perfil_tutor
+                )
+            )
+
+        return qs.none()
+
+    # ============================================================
+    # BLOQUEAR EDICIÓN DE CONFIGURACIONES
+    # ============================================================
+    def update(self, request, *args, **kwargs):
+        raise MethodNotAllowed(
+            "PUT",
+            detail="No se puede modificar una configuración existente."
         )
 
-    def update(self, request, *args, **kwargs):
-        raise MethodNotAllowed("PUT", detail="No se puede modificar una configuración existente.")
-
     def partial_update(self, request, *args, **kwargs):
-        raise MethodNotAllowed("PATCH", detail="No se puede modificar una configuración existente.")
+        raise MethodNotAllowed(
+            "PATCH",
+            detail="No se puede modificar una configuración existente."
+        )
 
+    # ============================================================
+    # CREAR CONFIGURACIÓN DE SEGUIMIENTO
+    # SOLO TUTOR DE LA MASCOTA
+    # ============================================================
     def create(self, request, *args, **kwargs):
-        # 🔒 Admin solo lectura (extra seguridad)
-        if is_admin(request.user):
-            return Response({"detail": "ADMIN solo lectura."}, status=403)
+
+        if not is_tutor(request.user):
+            raise PermissionDenied(
+                "Solo un tutor puede configurar seguimientos."
+            )
 
         solicitud_id = request.data.get("solicitud")
+
         if not solicitud_id:
-            return Response({"detail": "solicitud es obligatorio."}, status=400)
+            return Response(
+                {"detail": "El campo solicitud es obligatorio."},
+                status=400
+            )
 
         try:
-            sol = SolicitudAdopcion.objects.select_related("mascota__perfil_tutor").get(id=solicitud_id)
+            sol = SolicitudAdopcion.objects.select_related(
+                "mascota__perfil_tutor"
+            ).get(id=solicitud_id)
+
         except SolicitudAdopcion.DoesNotExist:
-            return Response({"detail": "Solicitud no encontrada."}, status=404)
+            return Response(
+                {"detail": "Solicitud no encontrada."},
+                status=404
+            )
 
         if sol.estado != "APROBADA":
-            raise PermissionDenied("Solo se configura seguimiento para solicitudes APROBADAS.")
+            return Response(
+                {
+                    "detail": (
+                        "Solo se puede configurar seguimiento "
+                        "para solicitudes aprobadas."
+                    )
+                },
+                status=400
+            )
 
         if sol.mascota.perfil_tutor_id != request.user.perfil_tutor.id:
-            raise PermissionDenied("No autorizado.")
+            raise PermissionDenied(
+                "No puedes configurar el seguimiento "
+                "de una mascota que no te pertenece."
+            )
 
         if SeguimientoConfig.objects.filter(solicitud=sol).exists():
-            return Response({"detail": "Ya existe configuración para esta solicitud."}, status=400)
+            return Response(
+                {
+                    "detail": (
+                        "Ya existe una configuración "
+                        "para esta solicitud."
+                    )
+                },
+                status=400
+            )
 
         return super().create(request, *args, **kwargs)
 
+    # ============================================================
+    # INICIAR SEGUIMIENTO
+    # SOLO TUTOR
+    # ============================================================
     @action(detail=True, methods=["post"], url_path="iniciar")
     def iniciar(self, request, pk=None):
-        if is_admin(request.user):
-            return Response({"detail": "ADMIN solo lectura."}, status=403)
 
-        cfg: SeguimientoConfig = self.get_object()
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if not is_tutor(request.user):
+            raise PermissionDenied(
+                "Solo un tutor puede iniciar seguimientos."
+            )
+
+        cfg = self.get_object()
         sol = cfg.solicitud
 
         if sol.estado != "APROBADA":
-            return Response({"detail": "Solo para solicitudes APROBADAS."}, status=400)
+            return Response(
+                {
+                    "detail": (
+                        "Solo se puede iniciar seguimiento "
+                        "para solicitudes aprobadas."
+                    )
+                },
+                status=400
+            )
 
         hoy = timezone.now().date()
+
         cfg.activo = True
         cfg.inicio = hoy
 
@@ -984,51 +1060,214 @@ class SeguimientoConfigViewSet(viewsets.ModelViewSet):
 
         cfg.save()
 
+        # --------------------------------------------------------
+        # REGISTRAR NOTIFICACIÓN INTERNA
+        # --------------------------------------------------------
         try:
             Notificacion.objects.create(
                 solicitud=sol,
                 perfil_tutor=request.user.perfil_tutor,
                 tipo="SEGUIMIENTO_INICIADO",
-                titulo=f"Seguimiento iniciado ({sol.mascota.nombre})",
+                titulo=(
+                    f"Seguimiento iniciado ({sol.mascota.nombre})"
+                ),
                 cuerpo=f"Se inició seguimiento el {hoy}.",
             )
+
         except Exception:
-            pass
+            logger.exception(
+                "No se pudo registrar la notificación "
+                "del seguimiento %s",
+                cfg.pk
+            )
+
+        # --------------------------------------------------------
+        # NOTIFICAR AL ADOPTANTE POR GMAIL
+        # El seguimiento permanece iniciado aunque falle Gmail.
+        # Pero NO se anuncia que el correo fue enviado.
+        # --------------------------------------------------------
+        correo_enviado = False
 
         try:
-            send_email_adoptante_recordatorio(cfg, titulo_extra="Seguimiento iniciado")
+            correo_enviado = (
+                send_email_adoptante_recordatorio(
+                    cfg,
+                    titulo_extra="Seguimiento iniciado"
+                ) is True
+            )
+
+            if not correo_enviado:
+                logger.error(
+                    "Gmail no confirmó el correo de inicio "
+                    "del seguimiento %s",
+                    cfg.pk
+                )
+
         except Exception:
-            pass
+            logger.exception(
+                "Error enviando correo de inicio "
+                "del seguimiento %s",
+                cfg.pk
+            )
 
         return Response(
             {
-                "detail": "Seguimiento iniciado.",
-                "config": SeguimientoConfigSerializer(cfg, context={"request": request}).data,
+                "detail": (
+                    "Seguimiento iniciado y Gmail aceptó "
+                    "la notificación."
+                    if correo_enviado
+                    else
+                    "Seguimiento iniciado correctamente, "
+                    "pero no se pudo confirmar el envío "
+                    "del correo al adoptante."
+                ),
+                "correo_enviado": correo_enviado,
+                "config": SeguimientoConfigSerializer(
+                    cfg,
+                    context={"request": request}
+                ).data,
             },
-            status=200,
+            status=200
         )
 
-    @action(detail=True, methods=["post"], url_path="recordatorio-manual")
+    # ============================================================
+    # SOLICITAR EVIDENCIAS AL ADOPTANTE
+    # SOLO TUTOR
+    # ============================================================
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="recordatorio-manual"
+    )
     def recordatorio_manual(self, request, pk=None):
-        if is_admin(request.user):
-            return Response({"detail": "ADMIN solo lectura."}, status=403)
 
-        cfg: SeguimientoConfig = self.get_object()
+        import logging
+        logger = logging.getLogger(__name__)
+
+        if not is_tutor(request.user):
+            raise PermissionDenied(
+                "Solo un tutor puede solicitar evidencias."
+            )
+
+        # Comprueba que el seguimiento corresponde
+        # a una mascota del tutor autenticado.
+        cfg = self.get_object()
+
+        if cfg.solicitud.estado != "APROBADA":
+            return Response(
+                {
+                    "detail": (
+                        "No se pueden solicitar evidencias "
+                        "de una adopción no aprobada."
+                    )
+                },
+                status=400
+            )
 
         if not cfg.activo:
-            raise PermissionDenied("Seguimiento inactivo.")
+            return Response(
+                {
+                    "detail": "El seguimiento está inactivo."
+                },
+                status=400
+            )
+
         if not cfg.inicio:
-            raise PermissionDenied("Debes iniciar el seguimiento primero.")
-        if cfg.solicitud.estado != "APROBADA":
-            raise PermissionDenied("Solo para solicitudes APROBADAS.")
+            return Response(
+                {
+                    "detail": (
+                        "Debes iniciar el seguimiento "
+                        "antes de solicitar evidencias."
+                    )
+                },
+                status=400
+            )
 
+        # --------------------------------------------------------
+        # VERIFICAR DESTINATARIO
+        # --------------------------------------------------------
+        adoptante = cfg.solicitud.perfil_adoptante.user
+
+        adoptante_email = (
+            adoptante.email or ""
+        ).strip()
+
+        if not adoptante_email:
+            return Response(
+                {
+                    "detail": (
+                        "No se puede enviar el recordatorio: "
+                        "el adoptante no tiene correo registrado."
+                    )
+                },
+                status=400
+            )
+
+        # --------------------------------------------------------
+        # ENVIAR CORREO REAL POR GMAIL API
+        # --------------------------------------------------------
         try:
-            send_email_adoptante_recordatorio(cfg, titulo_extra="Recordatorio manual")
-        except Exception:
-            pass
+            resultado = send_email_adoptante_recordatorio(
+                cfg,
+                titulo_extra="Solicitud de evidencias"
+            )
 
-        return Response({"detail": "Recordatorio manual enviado."}, status=200)
-    
+            # gmail_sender.py devuelve True solamente
+            # cuando Gmail acepta el envío.
+            if resultado is not True:
+
+                logger.error(
+                    "Gmail no confirmó la solicitud "
+                    "de evidencias. Seguimiento ID: %s",
+                    cfg.pk
+                )
+
+                return Response(
+                    {
+                        "detail": (
+                            "No se pudo confirmar el envío "
+                            "del correo al adoptante."
+                        ),
+                        "correo_enviado": False,
+                    },
+                    status=502
+                )
+
+            logger.info(
+                "Gmail aceptó la solicitud de evidencias "
+                "del seguimiento %s",
+                cfg.pk
+            )
+
+            return Response(
+                {
+                    "detail": (
+                        "Gmail aceptó el correo de solicitud "
+                        "de evidencias para el adoptante."
+                    ),
+                    "correo_enviado": True,
+                },
+                status=200
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Error enviando solicitud de evidencias "
+                "del seguimiento %s",
+                cfg.pk
+            )
+
+            return Response(
+                {
+                    "detail": (
+                        "No se pudo enviar el correo al adoptante. "
+                        "Revisa los registros del backend en Render."
+                    ),
+                    "correo_enviado": False,
+                },
+                status=502
+            )
 
 class AdoptanteSeguimientosViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SeguimientoConfigSerializer
@@ -1058,9 +1297,11 @@ class AdoptanteSeguimientosViewSet(viewsets.ReadOnlyModelViewSet):
             solicitud__perfil_adoptante=perfil_adoptante,
         )
     
+
 class EvidenciasViewSet(viewsets.ModelViewSet):
+
     serializer_class = SeguimientoSolicitudSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdoptanteOrAdminReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         qs = (
@@ -1073,29 +1314,47 @@ class EvidenciasViewSet(viewsets.ModelViewSet):
             .order_by("-fecha")
         )
 
-        if is_admin(self.request.user):
+        user = self.request.user
+
+        if is_admin(user):
             return qs
 
-        perfil_adoptante = self.request.user.perfil_adoptante
-        return qs.filter(solicitud__perfil_adoptante=perfil_adoptante)
+        if is_tutor(user):
+            return qs.filter(
+                solicitud__mascota__perfil_tutor=user.perfil_tutor
+            )
 
-    # 🔒 Admin solo lectura
+        if is_adoptante(user):
+            return qs.filter(
+                solicitud__perfil_adoptante=user.perfil_adoptante
+            )
+
+        return qs.none()
+
     def create(self, request, *args, **kwargs):
-        if is_admin(request.user):
-            return Response({"detail": "ADMIN solo lectura."}, status=403)
+        if not is_adoptante(request.user):
+            raise PermissionDenied(
+                "Solo el adoptante puede subir evidencias."
+            )
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        if is_admin(request.user):
-            return Response({"detail": "ADMIN solo lectura."}, status=403)
+        if not is_adoptante(request.user):
+            raise PermissionDenied(
+                "Solo el adoptante puede modificar evidencias."
+            )
         return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        if is_admin(request.user):
-            return Response({"detail": "ADMIN solo lectura."}, status=403)
+        if not is_adoptante(request.user):
+            raise PermissionDenied(
+                "Solo el adoptante puede modificar evidencias."
+            )
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        if is_admin(request.user):
-            return Response({"detail": "ADMIN solo lectura."}, status=403)
+        if not is_adoptante(request.user):
+            raise PermissionDenied(
+                "Solo el adoptante puede eliminar evidencias."
+            )
         return super().destroy(request, *args, **kwargs)
