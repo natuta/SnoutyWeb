@@ -79,9 +79,23 @@ def send_gmail(to_email: str, subject: str, body: str) -> bool:
         msg.set_content(body)
 
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
-        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+        resultado = service.users().messages().send(
+            userId="me",
+            body={"raw": raw}
+        ).execute()
 
-        logger.info("Correo enviado correctamente a %s", to_email)
+        message_id = resultado.get("id")
+
+        if not message_id:
+            raise RuntimeError(
+                "Gmail no devolvió un identificador del mensaje enviado."
+            )
+
+        logger.info(
+            "Gmail aceptó el correo. Message ID: %s",
+            message_id
+        )
+
         return True
 
     except Exception as e:
