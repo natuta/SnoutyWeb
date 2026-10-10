@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -24,6 +24,7 @@ import { HistorialMedico } from '../snouty.models';
         <div class="flex justify-content-between align-items-center mb-3">
             <h5 class="m-0">Historiales Médicos</h5>
             <button
+                *ngIf="isAdmin"
                 pButton
                 type="button"
                 label="Nuevo historial"
@@ -43,7 +44,7 @@ import { HistorialMedico } from '../snouty.models';
                 <tr>
                     <th style="width:5rem">ID</th>
                     <th>Archivo S3</th>
-                    <th style="width:8rem">Acciones</th>
+                    <th style="width:10rem">Acciones</th>
                 </tr>
             </ng-template>
             <ng-template pTemplate="body" let-row>
@@ -53,27 +54,46 @@ import { HistorialMedico } from '../snouty.models';
                     <td>
                         <button
                             pButton
-                            icon="pi pi-pencil"
+                            type="button"
+                            icon="pi pi-eye"
                             rounded
                             text
-                            severity="secondary"
-                            (click)="edit(row)"
+                            severity="info"
+                            title="Ver historial"
+                            (click)="view(row)"
                         ></button>
-                        <button
-                            pButton
-                            icon="pi pi-trash"
-                            rounded
-                            text
-                            severity="danger"
-                            (click)="openDeleteConfirm(row)"
-                        ></button>
+                        <ng-container *ngIf="isAdmin">
+                            <button
+                                pButton
+                                type="button"
+                                icon="pi pi-pencil"
+                                rounded
+                                text
+                                severity="secondary"
+                                title="Editar historial"
+                                (click)="edit(row)"
+                            ></button>
+                            <button
+                                pButton
+                                type="button"
+                                icon="pi pi-trash"
+                                rounded
+                                text
+                                severity="danger"
+                                title="Eliminar historial"
+                                (click)="openDeleteConfirm(row)"
+                            ></button>
+                        </ng-container>
                     </td>
                 </tr>
+            </ng-template>
+            <ng-template pTemplate="emptymessage">
+                <tr><td colspan="3" class="text-center">No hay historiales médicos registrados.</td></tr>
             </ng-template>
         </p-table>
     </div>
 
-    <!-- FORM -->
+    <!-- CONSULTA / CREACIÓN / EDICIÓN -->
     <p-dialog
         [(visible)]="dialogVisible"
         [modal]="true"
@@ -83,7 +103,7 @@ import { HistorialMedico } from '../snouty.models';
         [style]="{ width: '32vw', maxWidth: '420px' }"
         [baseZIndex]="10000"
         [dismissableMask]="false"
-        [header]="editingId ? 'Editar historial' : 'Nuevo historial'"
+        [header]="readOnlyMode ? 'Ver historial médico' : (editingId ? 'Editar historial' : 'Nuevo historial')"
     >
         <form
             [formGroup]="form"
@@ -103,13 +123,14 @@ import { HistorialMedico } from '../snouty.models';
         <div class="flex justify-content-end gap-2 mt-3" style="margin-top:1.5rem;">
             <button
                 pButton
-                label="Cancelar"
+                [label]="readOnlyMode ? 'Cerrar' : 'Cancelar'"
                 icon="pi pi-times"
                 (click)="closeDialog()"
                 class="p-button-text"
                 type="button"
             ></button>
             <button
+                *ngIf="isAdmin && !readOnlyMode"
                 pButton
                 label="Guardar"
                 icon="pi pi-check"
@@ -119,8 +140,9 @@ import { HistorialMedico } from '../snouty.models';
         </div>
     </p-dialog>
 
-    <!-- CONFIRM -->
+    <!-- ELIMINAR: SOLO ADMIN -->
     <p-dialog
+        *ngIf="isAdmin"
         [(visible)]="confirmVisible"
         [modal]="true"
         [closable]="false"
@@ -133,14 +155,11 @@ import { HistorialMedico } from '../snouty.models';
         <div class="flex flex-column gap-3" style="text-align:center;">
             <i class="pi pi-exclamation-triangle" style="font-size:2rem;"></i>
             <p class="m-0">
-                ¿Seguro que desea eliminar el historial<br>
+                ¿Seguro que desea eliminar el historial<br />
                 <strong>#{{ historialToDelete?.id }}</strong>?
             </p>
-            <small *ngIf="deleteError" class="p-error">
-                {{ deleteError }}
-            </small>
+            <small *ngIf="deleteError" class="p-error">{{ deleteError }}</small>
         </div>
-
         <div class="flex justify-content-end gap-2 mt-4">
             <button
                 pButton
@@ -167,53 +186,85 @@ export class SnoutyHistorialesPage implements OnInit {
     form: FormGroup;
     dialogVisible = false;
     editingId: number | null = null;
+    readOnlyMode = false;
 
     confirmVisible = false;
     historialToDelete: HistorialMedico | null = null;
     deleteError = '';
 
-private baseUrl = 'https://snoutyweb.onrender.com/api/historiales-medicos/';
+    private baseUrl = 'https://snoutyweb.onrender.com/api/historiales-medicos/';
 
     constructor(private http: HttpClient, private fb: FormBuilder) {
         this.form = this.fb.group({
-            aws_s3_file: [''],
+            aws_s3_file: ['']
         });
+    }
+
+    // Mismas claves que utiliza AuthService para el usuario autenticado.
+    // El backend continúa siendo quien aplica los permisos de seguridad.
+    get isAdmin(): boolean {
+        try {
+            const stored = localStorage.getItem('snouty_current_user')
+                || localStorage.getItem('snouty_user');
+            if (!stored) return false;
+            const rol = JSON.parse(stored)?.rol;
+            return String(rol ?? '').trim().toUpperCase() === 'ADMIN';
+        } catch {
+            return false;
+        }
     }
 
     ngOnInit(): void {
         this.loadHistoriales();
     }
 
-    loadHistoriales() {
+    loadHistoriales(): void {
         this.http.get<HistorialMedico[]>(this.baseUrl).subscribe({
-            next: data => (this.historiales = data),
+            next: data => (this.historiales = data || []),
             error: err => console.error('Error cargando historiales', err)
         });
     }
 
-    openNew() {
+    openNew(): void {
+        if (!this.isAdmin) return;
+
+        this.readOnlyMode = false;
         this.editingId = null;
-        this.form.reset({
-            aws_s3_file: '',
-        });
+        this.form.enable({ emitEvent: false });
+        this.form.reset({ aws_s3_file: '' });
         this.dialogVisible = true;
     }
 
-    edit(row: HistorialMedico) {
+    private loadRowIntoForm(row: HistorialMedico): void {
         this.editingId = row.id ?? null;
-        this.form.patchValue({
-            aws_s3_file: row.aws_s3_file || '',
-        });
+        this.form.enable({ emitEvent: false });
+        this.form.reset({ aws_s3_file: row.aws_s3_file || '' });
+    }
+
+    view(row: HistorialMedico): void {
+        this.readOnlyMode = true;
+        this.loadRowIntoForm(row);
+        this.form.disable({ emitEvent: false });
         this.dialogVisible = true;
     }
 
-    closeDialog() {
+    edit(row: HistorialMedico): void {
+        if (!this.isAdmin) return;
+
+        this.readOnlyMode = false;
+        this.loadRowIntoForm(row);
+        this.dialogVisible = true;
+    }
+
+    closeDialog(): void {
         this.dialogVisible = false;
     }
 
-    save() {
+    save(): void {
+        if (!this.isAdmin || this.readOnlyMode) return;
+
         const payload: HistorialMedico = {
-            aws_s3_file: this.form.value['aws_s3_file'] || null,
+            aws_s3_file: this.form.getRawValue()['aws_s3_file'] || null
         };
 
         if (this.editingId) {
@@ -235,21 +286,21 @@ private baseUrl = 'https://snoutyweb.onrender.com/api/historiales-medicos/';
         }
     }
 
-    openDeleteConfirm(row: HistorialMedico) {
-        if (!row.id) return;
+    openDeleteConfirm(row: HistorialMedico): void {
+        if (!this.isAdmin || !row.id) return;
         this.historialToDelete = row;
         this.deleteError = '';
         this.confirmVisible = true;
     }
 
-    cancelDelete() {
+    cancelDelete(): void {
         this.confirmVisible = false;
         this.historialToDelete = null;
         this.deleteError = '';
     }
 
-    confirmDelete() {
-        if (!this.historialToDelete?.id) return;
+    confirmDelete(): void {
+        if (!this.isAdmin || !this.historialToDelete?.id) return;
 
         this.http.delete(`${this.baseUrl}${this.historialToDelete.id}/`).subscribe({
             next: () => {
