@@ -31,8 +31,18 @@ def send_gmail(to_email: str, subject: str, body: str) -> bool:
         logger.warning("send_gmail: destinatario vacío.")
         return False
 
+    import os
+
     base_dir = Path(__file__).resolve().parents[1]
-    token_path = base_dir / "gmail_token.json"
+
+    token_path = Path(
+        os.getenv(
+            "GMAIL_TOKEN_PATH",
+            "/etc/secrets/gmail_token.json"
+            if os.getenv("RENDER")
+            else str(base_dir / "gmail_token.json")
+        )
+    )
 
     if not token_path.exists():
         logger.error("No existe el archivo de token Gmail: %s", token_path)
@@ -45,13 +55,14 @@ def send_gmail(to_email: str, subject: str, body: str) -> bool:
         raise Exception(f"No se pudo leer gmail_token.json: {e}")
 
     try:
-        if creds.expired:
+
+        if creds.expired or not creds.valid:
             if creds.refresh_token:
                 creds.refresh(Request())
-                token_path.write_text(creds.to_json(), encoding="utf-8")
             else:
-                logger.error("Las credenciales de Gmail expiraron y no tienen refresh_token.")
-                raise Exception("Las credenciales de Gmail expiraron y no tienen refresh_token.")
+                raise RuntimeError(
+                    "Las credenciales de Gmail no tienen refresh_token válido."
+                )
     except RefreshError as e:
         logger.exception("Error refrescando token Gmail: %s", e)
         raise Exception(f"Credenciales Gmail inválidas o revocadas: {e}")
