@@ -464,35 +464,40 @@ private API = 'https://snoutyweb.onrender.com/api';
       });
   }
 
-  private loadTutorEvidenciasBySolicitud(solicitudId: number): void {
-    this.startLoading();
+  
+private loadTutorEvidenciasBySolicitud(solicitudId: number): void {
+  this.startLoading();
 
-    const urlTutor = `${this.API}/tutor/seguimientos/evidencias/`;
-    const paramsTutor = new HttpParams().set('solicitud_id', String(solicitudId));
+  // Endpoint correcto de Django
+  const url = `${this.API}/seguimientos/evidencias/`;
 
-    const urlFallback = `${this.API}/seguimientos/evidencias/`;
-    const paramsFallback = new HttpParams().set('solicitud', String(solicitudId));
+  const params = new HttpParams().set(
+    'solicitud',
+    String(solicitudId)
+  );
 
-    this.http.get<SeguimientoEvidencia[]>(urlTutor, { params: paramsTutor }).pipe(
-      catchError((e) => {
-        if (e?.status === 404) {
-          return this.http.get<SeguimientoEvidencia[]>(urlFallback, { params: paramsFallback }).pipe(
-            catchError((e2) => {
-              console.error('[Tutor] fallback evidencias error:', e2);
-              return of([]);
-            })
-          );
-        }
+  this.http
+    .get<SeguimientoEvidencia[]>(url, { params })
+    .pipe(
+      catchError((error) => {
+        console.error(
+          '[Tutor] Error cargando evidencias:',
+          error
+        );
 
-        console.error('[Tutor] evidencias error:', e);
         return of([]);
       }),
-      finalize(() => this.stopLoading()),
+      finalize(() => this.stopLoading())
     )
     .subscribe((data) => {
-      this.tutorEvidenciasSolicitud = data ?? [];
+      // Filtrar también en Angular porque el get_queryset()
+      // actual de Django no aplica el parámetro solicitud.
+      this.tutorEvidenciasSolicitud = (data ?? []).filter(
+        (e) => Number(e.solicitud) === solicitudId
+      );
     });
-  }
+}
+
 
   // ==========================================================
   // ========================== ADOPTANTE ======================
