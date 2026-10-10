@@ -1,395 +1,731 @@
 <p-toast position="top-center"></p-toast>
 
 <div class="snouty-bg">
+
   <div class="snouty-wrap">
+
     <div class="glass">
+
       <div class="glass-header">
+
         <h2 class="title">Gestión de Vacunas</h2>
+
         <p class="subtitle">
-          Administra vacunas registradas y controla fechas de aplicación y próximas dosis.
+
+          Consulta las vacunas registradas, sus fechas de aplicación y próximas dosis.
+
         </p>
 
         <div class="toolbar">
+
           <div class="searchbox">
+
             <span class="p-input-icon-left" style="width: 100%">
+
               <i class="pi pi-search"></i>
+
               <input
+
                 pInputText
+
                 type="text"
+
                 placeholder="Buscar por tipo, producto, veterinaria..."
+
                 [(ngModel)]="globalFilter"
+
                 style="width: 100%"
+
               />
+
             </span>
 
             <button
+
               pButton
+
               type="button"
+
               icon="pi pi-filter-slash"
+
               class="p-button-text"
+
               (click)="clearSearch(dt)"
+
               title="Limpiar"
+
             ></button>
+
           </div>
 
           <button
+
             pButton
+
             type="button"
-            label="Nueva vacuna"
+
+            *ngIf="isAdmin"
+          label="Nueva vacuna"
+
             icon="pi pi-plus"
+
             class="snouty-btn-primary"
+
             (click)="openNew()"
+
           ></button>
+
         </div>
+
       </div>
 
       <div class="glass-body">
+
         <p-table
+
           #dt
+
           class="snouty-table"
+
           [value]="vacunas"
+
           [paginator]="true"
+
           [rows]="10"
+
           [loading]="loading"
+
           dataKey="id"
+
           [globalFilterFields]="[
+
             'tipo',
+
             'producto',
+
             'veterinaria',
+
             'fecha_aplicacion',
+
             'proxima_dosis'
+
           ]"
+
           [filters]="{ global: { value: globalFilter, matchMode: 'contains' } }"
+
           [tableStyle]="{ 'min-width': '60rem' }"
+
         >
+
           <ng-template pTemplate="header">
+
             <tr>
+
               <th style="width: 5rem">ID</th>
+
               <th>Cartilla</th>
+
               <th>Tipo</th>
+
               <th>Producto</th>
+
               <th>Fecha aplicación</th>
+
               <th>Próxima dosis</th>
+
               <th>Veterinaria</th>
+
               <th style="width: 8rem; text-align: right">Acciones</th>
+
             </tr>
+
           </ng-template>
 
           <ng-template pTemplate="body" let-row>
+
             <tr>
+
               <td>{{ row.id }}</td>
+
               <td>{{ cartillaLabel(row.cartilla_medica_id) }}</td>
+
               <td>{{ row.tipo }}</td>
+
               <td>{{ row.producto || '-' }}</td>
+
               <td>{{ row.fecha_aplicacion }}</td>
+
               <td>{{ row.proxima_dosis || '-' }}</td>
+
               <td>{{ row.veterinaria || '-' }}</td>
+
               <td style="text-align: right; white-space: nowrap">
+                  <!-- ADMIN y TUTOR: consultar sin modificar -->
+                  <button
+                    pButton
+                    type="button"
+                    icon="pi pi-eye"
+                    rounded
+                    text
+                    severity="info"
+                    (click)="view(row)"
+                    title="Ver vacuna"
+                  ></button>
+
                 <button
+
                   pButton
+
                   type="button"
-                  icon="pi pi-pencil"
+
+                  *ngIf="isAdmin"
+                    icon="pi pi-pencil"
+
                   rounded
+
                   text
+
                   severity="secondary"
+
                   (click)="edit(row)"
+
                   title="Editar"
+
                 ></button>
 
                 <button
+
                   pButton
+
                   type="button"
-                  icon="pi pi-trash"
+
+                  *ngIf="isAdmin"
+                    icon="pi pi-trash"
+
                   rounded
+
                   text
+
                   severity="danger"
+
                   (click)="openDeleteConfirm(row)"
+
                   title="Eliminar"
+
                 ></button>
+
               </td>
+
             </tr>
+
           </ng-template>
 
           <ng-template pTemplate="emptymessage">
+
             <tr>
+
               <td colspan="8" style="text-align: center; padding: 1.5rem">
+
                 No hay vacunas registradas.
+
               </td>
+
             </tr>
+
           </ng-template>
+
         </p-table>
+
       </div>
+
     </div>
 
     <p-dialog
+
       [(visible)]="dialogVisible"
+
       [modal]="true"
+
       [closable]="false"
+
       [draggable]="false"
+
       [dismissableMask]="false"
+
       [breakpoints]="{ '1200px': '45vw', '960px': '60vw', '640px': '92vw' }"
+
       [style]="{ width: '45vw', maxWidth: '760px' }"
+
       [baseZIndex]="10000"
-      [header]="editingId ? 'Editar vacuna' : 'Nueva vacuna'"
+
+      [header]="readOnlyMode ? 'Consultar vacuna' : (editingId ? 'Editar vacuna' : 'Nueva vacuna')"
+
     >
+
       <div class="dialog-content">
+
         <p-steps [model]="steps" [activeIndex]="stepIndex"></p-steps>
 
         <form [formGroup]="form" class="p-fluid">
+
           <ng-container *ngIf="stepIndex === 0">
+
             <div class="form-grid">
+
               <div class="field">
+
                 <label for="cartilla_medica_id">Cartilla médica *</label>
 
                 <p-select
+
                   inputId="cartilla_medica_id"
+
                   [options]="cartillas"
+
                   optionLabel="id"
+
                   optionValue="id"
+
                   formControlName="cartilla_medica_id"
+
                   placeholder="Seleccione cartilla"
+
                   [showClear]="true"
+
                   class="w-full"
+
                 ></p-select>
 
                 <small
+
                   class="p-error"
+
                   *ngIf="
+
                     c('cartilla_medica_id').touched &&
+
                     c('cartilla_medica_id').hasError('required')
+
                   "
+
                 >
+
                   La cartilla médica es obligatoria.
+
                 </small>
+
               </div>
 
               <div class="field">
+
                 <label for="tipo">Tipo de vacuna *</label>
+
                 <input
+
                   id="tipo"
+
                   pInputText
+
                   formControlName="tipo"
+
                   placeholder="Ej: Antirrábica"
+
                   maxlength="80"
+
                 />
 
                 <small
+
                   class="p-error"
+
                   *ngIf="c('tipo').touched && c('tipo').hasError('required')"
+
                 >
+
                   El tipo de vacuna es obligatorio.
+
                 </small>
 
                 <small
+
                   class="p-error"
+
                   *ngIf="c('tipo').touched && c('tipo').hasError('minlength')"
+
                 >
+
                   Debe tener al menos 3 caracteres.
+
                 </small>
 
                 <small
+
                   class="p-error"
+
                   *ngIf="c('tipo').touched && c('tipo').hasError('maxlength')"
+
                 >
+
                   Máximo 80 caracteres.
+
                 </small>
 
                 <small
+
                   class="p-error"
+
                   *ngIf="c('tipo').touched && c('tipo').hasError('pattern')"
+
                 >
+
                   Solo letras, números y símbolos permitidos (- . , ( )).
+
                 </small>
 
                 <small class="help">
+
                   Ej: “Antirrábica”, “Moquillo”, “Parvovirus”.
+
                 </small>
+
               </div>
 
               <div class="field" style="grid-column: 1 / -1">
+
                 <label for="producto">Producto</label>
+
                 <input
+
                   id="producto"
+
                   pInputText
+
                   formControlName="producto"
+
                   placeholder="Nombre comercial / lote"
+
                   maxlength="120"
+
                 />
 
                 <small
+
                   class="p-error"
+
                   *ngIf="c('producto').touched && c('producto').hasError('maxlength')"
+
                 >
+
                   Máximo 120 caracteres.
+
                 </small>
+
               </div>
+
             </div>
 
             <div class="step-actions">
+
               <div></div>
 
               <div class="step-actions-right">
+
                 <button
+
                   pButton
+
                   type="button"
-                  label="Cancelar"
+
+                  [label]="readOnlyMode ? 'Cerrar' : 'Cancelar'"
+
                   icon="pi pi-times"
+
                   class="p-button-text"
+
                   (click)="closeDialog()"
+
                 ></button>
 
                 <button
+
                   pButton
+
                   type="button"
+
                   label="Siguiente"
+
                   icon="pi pi-arrow-right"
+
                   iconPos="right"
+
                   (click)="nextStep()"
+
                 ></button>
+
               </div>
+
             </div>
+
           </ng-container>
 
           <ng-container *ngIf="stepIndex === 1">
+
             <div class="form-grid">
+
               <div class="field">
+
                 <label for="fecha_aplicacion">Fecha de aplicación *</label>
+
                 <input
+
                   id="fecha_aplicacion"
+
                   pInputText
+
                   type="date"
+
                   formControlName="fecha_aplicacion"
+
                 />
 
                 <small
+
                   class="p-error"
+
                   *ngIf="
+
                     c('fecha_aplicacion').touched &&
+
                     c('fecha_aplicacion').hasError('required')
+
                   "
+
                 >
+
                   La fecha de aplicación es obligatoria.
+
                 </small>
 
                 <small
+
                   class="p-error"
+
                   *ngIf="
+
                     c('fecha_aplicacion').touched &&
+
                     c('fecha_aplicacion').hasError('futureDate')
+
                   "
+
                 >
+
                   La fecha de aplicación no puede ser futura.
+
                 </small>
+
               </div>
 
               <div class="field">
+
                 <label for="proxima_dosis">Próxima dosis</label>
+
                 <input
+
                   id="proxima_dosis"
+
                   pInputText
+
                   type="date"
+
                   formControlName="proxima_dosis"
+
                 />
 
                 <small class="p-error" *ngIf="form.touched && form.hasError('dateOrder')">
+
                   La próxima dosis no puede ser menor que la fecha de aplicación.
+
                 </small>
 
                 <small class="help">
+
                   Opcional. Útil para control y recordatorios.
+
                 </small>
+
               </div>
 
               <div class="field" style="grid-column: 1 / -1">
+
                 <label for="veterinaria">Veterinaria</label>
+
                 <input
+
                   id="veterinaria"
+
                   pInputText
+
                   formControlName="veterinaria"
+
                   placeholder="Nombre de la veterinaria"
+
                   maxlength="120"
+
                 />
 
                 <small
+
                   class="p-error"
+
                   *ngIf="c('veterinaria').touched && c('veterinaria').hasError('maxlength')"
+
                 >
+
                   Máximo 120 caracteres.
+
                 </small>
+
               </div>
+
             </div>
 
             <div class="step-actions">
+
               <button
+
                 pButton
+
                 type="button"
+
                 label="Atrás"
+
                 icon="pi pi-arrow-left"
+
                 class="p-button-text"
+
                 (click)="prevStep()"
+
               ></button>
 
               <div class="step-actions-right">
+
                 <button
+
                   pButton
+
                   type="button"
-                  label="Cancelar"
+
+                  [label]="readOnlyMode ? 'Cerrar' : 'Cancelar'"
+
                   icon="pi pi-times"
+
                   class="p-button-text"
+
                   (click)="closeDialog()"
+
                 ></button>
 
                 <button
+
                   pButton
+
                   type="button"
-                  label="Guardar"
+
+                  *ngIf="isAdmin && !readOnlyMode"
+                    label="Guardar"
+
                   icon="pi pi-check"
+
                   (click)="save()"
+
                 ></button>
+
               </div>
+
             </div>
+
           </ng-container>
+
         </form>
+
       </div>
+
     </p-dialog>
 
     <p-dialog
-      [(visible)]="confirmVisible"
+
+      *ngIf="isAdmin"
+        [(visible)]="confirmVisible"
+
       [modal]="true"
+
       [closable]="false"
+
       [draggable]="false"
+
       [dismissableMask]="false"
+
       [style]="{ width: '380px', maxWidth: '92vw' }"
+
       [baseZIndex]="11000"
+
       header="Confirmar eliminación"
+
     >
+
       <div class="flex flex-column gap-3" style="text-align: center">
+
         <i class="pi pi-exclamation-triangle danger-icon"></i>
+
         <p class="m-0">
+
           ¿Seguro que desea eliminar la vacuna?<br />
+
           <strong>"{{ vacunaToDelete?.tipo }}"</strong>
+
         </p>
+
       </div>
 
       <div class="flex justify-content-end gap-2 mt-4">
+
         <button
+
           pButton
+
           type="button"
+
           label="Cancelar"
+
           icon="pi pi-times"
+
           class="p-button-text"
+
           (click)="cancelDelete()"
+
         ></button>
 
         <button
+
           pButton
+
           type="button"
+
           label="Eliminar"
+
           icon="pi pi-trash"
+
           severity="danger"
+
           (click)="confirmDelete()"
+
         ></button>
+
       </div>
+
     </p-dialog>
+
   </div>
+
 </div>
